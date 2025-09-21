@@ -124,7 +124,8 @@
 
         .progress-ring-circle {
             stroke-dasharray: 283;
-            stroke-dashoffset: 283;
+            stroke-dashoffset: var(--stroke-offset, 283);
+            stroke: var(--stroke-color, #6b7280);
             transition: stroke-dashoffset 0.35s;
         }
 
@@ -208,9 +209,10 @@
                             <div class="status-indicator {% if summary.compliance_percentage >= 99 %}bg-green-500{% elif summary.compliance_percentage >= 95 %}bg-yellow-500{% else %}bg-red-500{% endif %}"></div>
                             <h3 class="text-sm font-semibold text-white">SLO Compliance</h3>
                         </div>
-                        <div class="relative w-12 h-12">
+                        <div class="relative w-12 h-12"
+                             style="--stroke-color: {% if summary.compliance_percentage >= 99 %}#10b981{% elif summary.compliance_percentage >= 95 %}#f59e0b{% else %}#ef4444{% endif %}; --stroke-offset: {{ 283 - (summary.compliance_percentage / 100 * 283) }};">
                             <svg class="progress-ring w-12 h-12">
-                                <circle class="progress-ring-circle" stroke="{% if summary.compliance_percentage >= 99 %}#10b981{% elif summary.compliance_percentage >= 95 %}#f59e0b{% else %}#ef4444{% endif %}" stroke-width="3" fill="transparent" r="18" cx="24" cy="24" style="stroke-dashoffset: {{ 283 - (summary.compliance_percentage / 100 * 283) }};"/>
+                                <circle class="progress-ring-circle" stroke-width="3" fill="transparent" r="18" cx="24" cy="24"/>
                             </svg>
                             <span class="absolute inset-0 flex items-center justify-center text-xs font-bold {% if summary.compliance_percentage >= 99 %}text-green-400{% elif summary.compliance_percentage >= 95 %}text-yellow-400{% else %}text-red-400{% endif %}">{{ "%.0f"|format(summary.compliance_percentage) }}%</span>
                         </div>
@@ -271,11 +273,10 @@
                     <p class="text-xs text-slate-400">System status</p>
                 </div>
             </div>
-        </section>
 
-        <!-- Performance Trends -->
-        {% if trend_charts %}
-        <section class="mb-12">
+            <!-- Performance Trends - Moved closer to executive widgets -->
+            {% if trend_charts %}
+            <div class="mt-8 mb-6">
             <h2 class="text-3xl font-bold text-white mb-6 flex items-center gap-3">
                 <i class="fas fa-chart-area text-blue-400"></i>
                 Performance Trends & Analysis
@@ -294,8 +295,9 @@
                 </div>
                 {% endfor %}
             </div>
+            </div>
+            {% endif %}
         </section>
-        {% endif %}
 
         <!-- Detailed Metrics -->
         <section class="mb-12">

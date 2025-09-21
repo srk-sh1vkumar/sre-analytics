@@ -192,17 +192,38 @@ class BrowserPDFGenerator:
                 float: none !important;
             }
 
-            /* Convert grid to vertical stack for better page breaks */
-            .grid,
-            div[class*="grid"] {
+            /* PRESERVE Executive Summary grid layout */
+            .grid.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-5,
+            .grid[class*="grid-cols-5"] {
+                display: grid !important;
+                grid-template-columns: repeat(5, 1fr) !important;
+                gap: 1rem !important;
+                margin-bottom: 2rem !important;
+            }
+
+            /* Executive summary metric cards - keep inline */
+            .grid.grid-cols-1.md\\:grid-cols-2.lg\\:grid-cols-5 > .metric-card,
+            .grid[class*="grid-cols-5"] > .metric-card {
+                display: block !important;
+                width: auto !important;
+                margin: 0 !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                min-height: 120px !important;
+                padding: 12px !important;
+            }
+
+            /* Convert OTHER grids to vertical stack for better page breaks */
+            .grid:not([class*="grid-cols-5"]),
+            div[class*="grid"]:not([class*="grid-cols-5"]) {
                 display: block !important;
                 columns: unset !important;
                 column-count: unset !important;
             }
 
-            /* Force metrics to stack vertically */
-            .grid > div,
-            div[class*="grid"] > div {
+            /* Force OTHER metrics to stack vertically */
+            .grid:not([class*="grid-cols-5"]) > div,
+            div[class*="grid"]:not([class*="grid-cols-5"]) > div {
                 display: block !important;
                 width: 100% !important;
                 margin: 0 0 20px 0 !important;
@@ -211,13 +232,13 @@ class BrowserPDFGenerator:
                 break-inside: avoid !important;
             }
 
-            /* Specific targeting for detailed metrics section */
-            div[class*="grid-cols"] {
+            /* Specific targeting for detailed metrics section (non-executive summary) */
+            div[class*="grid-cols"]:not([class*="grid-cols-5"]) {
                 display: block !important;
                 grid-template-columns: none !important;
             }
 
-            div[class*="grid-cols"] > * {
+            div[class*="grid-cols"]:not([class*="grid-cols-5"]) > * {
                 display: block !important;
                 width: 100% !important;
                 margin-bottom: 20px !important;
