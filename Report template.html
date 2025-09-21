@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced SRE Analytics Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --success-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            --warning-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --danger-gradient: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            --info-gradient: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+            --dark-gradient: linear-gradient(135deg, #2c3e50 0%, #1a252f 100%);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .glass-card:hover {
+            background: rgba(30, 41, 59, 0.8);
+            border-color: rgba(148, 163, 184, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        .metric-card {
+            background: var(--dark-gradient);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .metric-card:hover::before {
+            left: 100%;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border-color: rgba(148, 163, 184, 0.3);
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+            position: relative;
+        }
+
+        .status-indicator::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            border-radius: 50%;
+            border: 2px solid currentColor;
+            opacity: 0.3;
+            animation: ripple 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        @keyframes ripple {
+            0% { transform: scale(0.8); opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+
+        .gradient-text {
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .collapsible-content.open {
+            max-height: 1000px;
+        }
+
+        .theme-toggle {
+            background: var(--primary-gradient);
+            transition: all 0.3s ease;
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.1);
+        }
+
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+
+        .progress-ring-circle {
+            stroke-dasharray: 283;
+            stroke-dashoffset: 283;
+            transition: stroke-dashoffset 0.35s;
+        }
+
+        .ai-insight {
+            background: linear-gradient(135deg, rgba(124, 58, 237, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
+            border-left: 4px solid #8b5cf6;
+        }
+
+        .trend-up { color: #10b981; }
+        .trend-down { color: #ef4444; }
+        .trend-neutral { color: #f59e0b; }
+
+        .floating-action {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 1000;
+        }
+
+        @media (max-width: 768px) {
+            .grid-responsive {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Theme Toggle -->
+    <div class="theme-toggle fixed top-4 right-4 p-3 rounded-full cursor-pointer z-50" onclick="toggleTheme()">
+        <i class="fas fa-moon text-white"></i>
+    </div>
+
+    <!-- Floating Action Menu -->
+    <div class="floating-action">
+        <div class="relative group">
+            <button class="w-14 h-14 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white shadow-lg hover:scale-110 transition-transform">
+                <i class="fas fa-cog"></i>
+            </button>
+            <div class="absolute bottom-16 right-0 bg-slate-800 rounded-lg p-4 opacity-0 group-hover:opacity-100 transition-opacity shadow-xl min-w-48">
+                <div class="space-y-2">
+                    <button onclick="exportToPDF()" class="w-full text-left px-3 py-2 hover:bg-slate-700 rounded flex items-center gap-2">
+                        <i class="fas fa-file-pdf text-red-400"></i> Export PDF
+                    </button>
+                    <button onclick="exportToCSV()" class="w-full text-left px-3 py-2 hover:bg-slate-700 rounded flex items-center gap-2">
+                        <i class="fas fa-file-csv text-green-400"></i> Export CSV
+                    </button>
+                    <button onclick="shareReport()" class="w-full text-left px-3 py-2 hover:bg-slate-700 rounded flex items-center gap-2">
+                        <i class="fas fa-share text-blue-400"></i> Share Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto p-6">
+        <!-- Header -->
+        <header class="text-center mb-12">
+            <div class="glass-card p-8 rounded-2xl">
+                <h1 class="text-5xl font-bold gradient-text mb-4">
+                    🚀 Advanced SRE Analytics Dashboard
+                </h1>
+                <div class="flex justify-center items-center gap-6 mb-4">
+                    <div class="text-center">
+                        <p class="text-xl text-slate-300">Application</p>
+                        <p class="text-2xl font-semibold text-white">Multi-Service Platform</p>
+                    </div>
+                    <div class="w-px h-12 bg-slate-600"></div>
+                    <div class="text-center">
+                        <p class="text-xl text-slate-300">Period</p>
+                        <p class="text-2xl font-semibold text-white">Last 30 Days</p>
+                    </div>
+                    <div class="w-px h-12 bg-slate-600"></div>
+                    <div class="text-center">
+                        <p class="text-xl text-slate-300">Status</p>
+                        <div class="flex items-center justify-center gap-2">
+                            <div class="status-indicator bg-green-500"></div>
+                            <span class="text-green-400 font-semibold">Healthy</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Time Range Selector -->
+                <div class="flex justify-center gap-2 mt-6">
+                    <button class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors" onclick="setTimeRange('24h')">24h</button>
+                    <button class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors" onclick="setTimeRange('7d')">7d</button>
+                    <button class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors" onclick="setTimeRange('30d')">30d</button>
+                    <button class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors" onclick="setTimeRange('90d')">90d</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="glass-card p-1 rounded-xl mb-8">
+            <div class="flex space-x-1">
+                <button class="tab-button flex-1 py-3 px-6 rounded-lg font-medium transition-all bg-purple-600 text-white" onclick="showTab('overview')">
+                    <i class="fas fa-chart-line mr-2"></i>Overview
+                </button>
+                <button class="tab-button flex-1 py-3 px-6 rounded-lg font-medium transition-all hover:bg-slate-700" onclick="showTab('metrics')">
+                    <i class="fas fa-tachometer-alt mr-2"></i>Metrics
+                </button>
+                <button class="tab-button flex-1 py-3 px-6 rounded-lg font-medium transition-all hover:bg-slate-700" onclick="showTab('incidents')">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>Incidents
+                </button>
+                <button class="tab-button flex-1 py-3 px-6 rounded-lg font-medium transition-all hover:bg-slate-700" onclick="showTab('ai-insights')">
+                    <i class="fas fa-brain mr-2"></i>AI Insights
+                </button>
+            </div>
+        </nav>
+
+        <!-- Overview Tab -->
+        <div id="overview" class="tab-content active">
+            <!-- Key Performance Indicators -->
+            <section class="mb-12">
+                <h2 class="text-3xl font-bold text-white mb-6 flex items-center gap-3">
+                    <i class="fas fa-chart-bar text-purple-400"></i>
+                    Key Performance Indicators
+                </h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <!-- SLO Compliance -->
+                    <div class="metric-card p-6 rounded-xl relative">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="status-indicator bg-green-500"></div>
+                                <h3 class="text-lg font-semibold text-white">SLO Compliance</h3>
+                            </div>
+                            <div class="relative w-12 h-12">
+                                <svg class="progress-ring w-12 h-12">
+                                    <circle class="progress-ring-circle" stroke="#10b981" stroke-width="3" fill="transparent" r="18" cx="24" cy="24" style="stroke-dashoffset: 28.3;"/>
+                                </svg>
+                                <span class="absolute inset-0 flex items-center justify-center text-xs font-bold text-green-400">99%</span>
+                            </div>
+                        </div>
+                        <p class="text-3xl font-bold text-white mb-2">99.87%</p>
+                        <p class="text-sm text-slate-400">Target: 99.9%</p>
+                        <div class="flex items-center gap-1 mt-2">
+                            <i class="fas fa-arrow-down trend-down text-xs"></i>
+                            <span class="text-xs text-red-400">0.03% below target</span>
+                        </div>
+                    </div>
+
+                    <!-- Error Budget -->
+                    <div class="metric-card p-6 rounded-xl relative">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="status-indicator bg-yellow-500"></div>
+                                <h3 class="text-lg font-semibold text-white">Error Budget</h3>
+                            </div>
+                            <i class="fas fa-piggy-bank text-yellow-400 text-xl"></i>
+                        </div>
+                        <p class="text-3xl font-bold text-white mb-2">73%</p>
+                        <p class="text-sm text-slate-400">Remaining this month</p>
+                        <div class="w-full bg-slate-700 rounded-full h-2 mt-3">
+                            <div class="bg-yellow-500 h-2 rounded-full" style="width: 73%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Mean Time to Recovery -->
+                    <div class="metric-card p-6 rounded-xl relative">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="status-indicator bg-green-500"></div>
+                                <h3 class="text-lg font-semibold text-white">MTTR</h3>
+                            </div>
+                            <i class="fas fa-tools text-green-400 text-xl"></i>
+                        </div>
+                        <p class="text-3xl font-bold text-white mb-2">22m</p>
+                        <p class="text-sm text-slate-400">Target: < 30m</p>
+                        <div class="flex items-center gap-1 mt-2">
+                            <i class="fas fa-arrow-up trend-up text-xs"></i>
+                            <span class="text-xs text-green-400">8m faster than target</span>
+                        </div>
+                    </div>
+
+                    <!-- Apdex Score -->
+                    <div class="metric-card p-6 rounded-xl relative">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="status-indicator bg-yellow-500"></div>
+                                <h3 class="text-lg font-semibold text-white">Apdex Score</h3>
+                            </div>
+                            <i class="fas fa-smile text-yellow-400 text-xl"></i>
+                        </div>
+                        <p class="text-3xl font-bold text-white mb-2">0.91</p>
+                        <p class="text-sm text-slate-400">Target: ≥ 0.95</p>
+                        <div class="flex items-center gap-1 mt-2">
+                            <i class="fas fa-arrow-down trend-down text-xs"></i>
+                            <span class="text-xs text-yellow-400">0.04 below target</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Interactive Charts -->
+            <section class="mb-12">
+                <h2 class="text-3xl font-bold text-white mb-6 flex items-center gap-3">
+                    <i class="fas fa-chart-area text-blue-400"></i>
+                    Performance Trends
+                </h2>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Response Time Trend -->
+                    <div class="glass-card p-6 rounded-xl">
+                        <h3 class="text-xl font-semibold text-white mb-4">Response Time Trend</h3>
+                        <canvas id="responseTimeChart" height="300"></canvas>
+                    </div>
+
+                    <!-- Error Rate Trend -->
+                    <div class="glass-card p-6 rounded-xl">
+                        <h3 class="text-xl font-semibold text-white mb-4">Error Rate Analysis</h3>
+                        <canvas id="errorRateChart" height="300"></canvas>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Metrics Tab -->
+        <div id="metrics" class="tab-content">
+            <section class="mb-12">
+                <h2 class="text-3xl font-bold text-white mb-6 flex items-center gap-3">
+                    <i class="fas fa-tachometer-alt text-purple-400"></i>
+                    Detailed Metrics Analysis
+                </h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Response Time -->
+                    <div class="metric-card p-6 rounded-xl">
+                        <div class="flex items-center mb-4">
+                            <div class="status-indicator bg-green-500 mr-3"></div>
+                            <h3 class="text-lg font-semibold text-white">Response Time (95th)</h3>
+                        </div>
+                        <p class="text-4xl font-bold text-white mb-2">820ms</p>
+                        <p class="text-sm text-slate-400">Target: < 1,000ms</p>
+                        <div class="mt-4 p-3 bg-slate-700/50 rounded">
+                            <p class="text-sm text-slate-300">Application latency is healthy, though peaks align with high load periods.</p>
+                        </div>
+                    </div>
+
+                    <!-- Error Rate -->
+                    <div class="metric-card p-6 rounded-xl">
+                        <div class="flex items-center mb-4">
+                            <div class="status-indicator bg-green-500 mr-3"></div>
+                            <h3 class="text-lg font-semibold text-white">Error Rate</h3>
+                        </div>
+                        <p class="text-4xl font-bold text-white mb-2">0.45%</p>
+                        <p class="text-sm text-slate-400">Target: < 0.5%</p>
+                        <div class="mt-4 p-3 bg-slate-700/50 rounded">
+                            <p class="text-sm text-slate-300">Error handling is robust, but occasional spikes during deployments.</p>
+                        </div>
+                    </div>
+
+                    <!-- Throughput -->
+                    <div class="metric-card p-6 rounded-xl">
+                        <div class="flex items-center mb-4">
+                            <div class="status-indicator bg-blue-500 mr-3"></div>
+                            <h3 class="text-lg font-semibold text-white">Throughput</h3>
+                        </div>
+                        <p class="text-4xl font-bold text-white mb-2">1,250</p>
+                        <p class="text-sm text-slate-400">Requests/minute</p>
+                        <div class="mt-4 p-3 bg-slate-700/50 rounded">
+                            <p class="text-sm text-slate-300">Traffic patterns show consistent growth with peak hours clearly defined.</p>
+                        </div>
+                    </div>
+
+                    <!-- CPU Utilization -->
+                    <div class="metric-card p-6 rounded-xl">
+                        <div class="flex items-center mb-4">
+                            <div class="status-indicator bg-yellow-500 mr-3"></div>
+                            <h3 class="text-lg font-semibold text-white">CPU Utilization</h3>
+                        </div>
+                        <p class="text-4xl font-bold text-white mb-2">88%</p>
+                        <p class="text-sm text-slate-400">Peak utilization</p>
+                        <div class="mt-4 p-3 bg-yellow-900/20 rounded border-l-4 border-yellow-500">
+                            <p class="text-sm text-yellow-200">⚠️ Scaling thresholds need adjustment to prevent performance degradation.</p>
+                        </div>
+                    </div>
+
+                    <!-- Memory Usage -->
+                    <div class="metric-card p-6 rounded-xl">
+                        <div class="flex items-center mb-4">
+                            <div class="status-indicator bg-green-500 mr-3"></div>
+                            <h3 class="text-lg font-semibold text-white">Memory Usage</h3>
+                        </div>
+                        <p class="text-4xl font-bold text-white mb-2">70%</p>
+                        <p class="text-sm text-slate-400">Average utilization</p>
+                        <div class="mt-4 p-3 bg-slate-700/50 rounded">
+                            <p class="text-sm text-slate-300">Adequate headroom maintained; no memory leaks detected.</p>
+                        </div>
+                    </div>
+
+                    <!-- Database Performance -->
+                    <div class="metric-card p-6 rounded-xl">
+                        <div class="flex items-center mb-4">
+                            <div class="status-indicator bg-red-500 mr-3"></div>
+                            <h3 class="text-lg font-semibold text-white">Slow Queries</h3>
+                        </div>
+                        <p class="text-4xl font-bold text-white mb-2">1,200</p>
+                        <p class="text-sm text-slate-400">Queries > 1s</p>
+                        <div class="mt-4 p-3 bg-red-900/20 rounded border-l-4 border-red-500">
+                            <p class="text-sm text-red-200">🚨 High query latency detected. Database optimization required.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Incidents Tab -->
+        <div id="incidents" class="tab-content">
+            <section class="mb-12">
+                <h2 class="text-3xl font-bold text-white mb-6 flex items-center gap-3">
+                    <i class="fas fa-exclamation-triangle text-orange-400"></i>
+                    Incident Analysis
+                </h2>
+
+                <!-- Incident Timeline -->
+                <div class="glass-card p-6 rounded-xl mb-6">
+                    <h3 class="text-xl font-semibold text-white mb-4">Recent Incidents</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-start gap-4 p-4 bg-red-900/20 rounded-lg border-l-4 border-red-500">
+                            <div class="status-indicator bg-red-500 mt-1"></div>
+                            <div class="flex-1">
+                                <div class="flex justify-between items-start mb-2">
+                                    <h4 class="font-semibold text-white">Database Connection Pool Exhaustion</h4>
+                                    <span class="text-xs text-slate-400">2 days ago</span>
+                                </div>
+                                <p class="text-sm text-slate-300 mb-2">High traffic caused connection pool saturation, leading to 503 errors.</p>
+                                <div class="flex gap-2 text-xs">
+                                    <span class="px-2 py-1 bg-red-600 rounded">Critical</span>
+                                    <span class="px-2 py-1 bg-slate-600 rounded">Resolved</span>
+                                    <span class="px-2 py-1 bg-blue-600 rounded">MTTR: 18m</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start gap-4 p-4 bg-yellow-900/20 rounded-lg border-l-4 border-yellow-500">
+                            <div class="status-indicator bg-yellow-500 mt-1"></div>
+                            <div class="flex-1">
+                                <div class="flex justify-between items-start mb-2">
+                                    <h4 class="font-semibold text-white">API Gateway Latency Spike</h4>
+                                    <span class="text-xs text-slate-400">5 days ago</span>
+                                </div>
+                                <p class="text-sm text-slate-300 mb-2">Temporary latency increase due to downstream service dependency.</p>
+                                <div class="flex gap-2 text-xs">
+                                    <span class="px-2 py-1 bg-yellow-600 rounded">Warning</span>
+                                    <span class="px-2 py-1 bg-slate-600 rounded">Auto-resolved</span>
+                                    <span class="px-2 py-1 bg-blue-600 rounded">MTTR: 8m</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Incident Statistics -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="glass-card p-6 rounded-xl text-center">
+                        <div class="text-3xl font-bold text-white mb-2">3</div>
+                        <div class="text-slate-400">Total Incidents</div>
+                        <div class="text-sm text-green-400 mt-1">↓ 40% from last month</div>
+                    </div>
+
+                    <div class="glass-card p-6 rounded-xl text-center">
+                        <div class="text-3xl font-bold text-white mb-2">15m</div>
+                        <div class="text-slate-400">Avg Resolution Time</div>
+                        <div class="text-sm text-green-400 mt-1">↓ 25% improvement</div>
+                    </div>
+
+                    <div class="glass-card p-6 rounded-xl text-center">
+                        <div class="text-3xl font-bold text-white mb-2">99.1%</div>
+                        <div class="text-slate-400">Incident Detection Rate</div>
+                        <div class="text-sm text-blue-400 mt-1">Above 99% target</div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- AI Insights Tab -->
+        <div id="ai-insights" class="tab-content">
+            <section class="mb-12">
+                <h2 class="text-3xl font-bold text-white mb-6 flex items-center gap-3">
+                    <i class="fas fa-brain text-purple-400"></i>
+                    AI-Powered Insights & Recommendations
+                </h2>
+
+                <!-- Predictive Analytics -->
+                <div class="ai-insight glass-card p-6 rounded-xl mb-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <i class="fas fa-crystal-ball text-purple-400 text-xl"></i>
+                        <h3 class="text-xl font-semibold text-white">Predictive Analysis</h3>
+                        <span class="px-3 py-1 bg-purple-600 text-white text-xs rounded-full">AI Generated</span>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="p-4 bg-slate-800/50 rounded-lg">
+                            <h4 class="font-semibold text-white mb-2">SLO Breach Risk</h4>
+                            <div class="flex items-center gap-2 mb-2">
+                                <div class="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                                <span class="text-yellow-400 font-medium">Medium Risk</span>
+                                <span class="text-sm text-slate-400">(23% probability)</span>
+                            </div>
+                            <p class="text-sm text-slate-300">Current error budget burn rate suggests potential SLO breach within 12 days if trends continue.</p>
+                        </div>
+
+                        <div class="p-4 bg-slate-800/50 rounded-lg">
+                            <h4 class="font-semibold text-white mb-2">Capacity Forecast</h4>
+                            <div class="flex items-center gap-2 mb-2">
+                                <div class="w-2 h-2 bg-orange-500 rounded-full"></div>
+                                <span class="text-orange-400 font-medium">Scale Soon</span>
+                                <span class="text-sm text-slate-400">(7 days)</span>
+                            </div>
+                            <p class="text-sm text-slate-300">Traffic growth patterns indicate need for additional capacity within the next week.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Smart Recommendations -->
+                <div class="space-y-6">
+                    <div class="ai-insight glass-card p-6 rounded-xl">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-lightbulb text-yellow-400 text-xl"></i>
+                                <h3 class="text-xl font-semibold text-white">Priority Recommendations</h3>
+                            </div>
+                            <span class="px-3 py-1 bg-green-600 text-white text-xs rounded-full">High Confidence</span>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div class="p-4 bg-red-900/20 rounded-lg border-l-4 border-red-500">
+                                <div class="flex justify-between items-start mb-2">
+                                    <h4 class="font-semibold text-white">🚨 Critical: Database Query Optimization</h4>
+                                    <span class="text-xs bg-red-600 text-white px-2 py-1 rounded">P0</span>
+                                </div>
+                                <p class="text-sm text-slate-300 mb-3">1,200+ slow queries detected. Implement database indexing and query optimization.</p>
+                                <div class="flex gap-4 text-xs">
+                                    <span class="flex items-center gap-1">
+                                        <i class="fas fa-clock text-orange-400"></i>
+                                        <span>Impact: High</span>
+                                    </span>
+                                    <span class="flex items-center gap-1">
+                                        <i class="fas fa-wrench text-blue-400"></i>
+                                        <span>Effort: Medium</span>
+                                    </span>
+                                    <span class="flex items-center gap-1">
+                                        <i class="fas fa-calendar text-green-400"></i>
+                                        <span>Timeline: 1-2 weeks</span>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="p-4 bg-yellow-900/20 rounded-lg border-l-4 border-yellow-500">
+                                <div class="flex justify-between items-start mb-2">
+                                    <h4 class="font-semibold text-white">⚡ High: Auto-scaling Configuration</h4>
+                                    <span class="text-xs bg-yellow-600 text-white px-2 py-1 rounded">P1</span>
+                                </div>
+                                <p class="text-sm text-slate-300 mb-3">Adjust CPU scaling threshold from 85% to 75% to prevent performance degradation.</p>
+                                <div class="flex gap-4 text-xs">
+                                    <span class="flex items-center gap-1">
+                                        <i class="fas fa-clock text-orange-400"></i>
+                                        <span>Impact: Medium</span>
+                                    </span>
+                                    <span class="flex items-center gap-1">
+                                        <i class="fas fa-wrench text-green-400"></i>
+                                        <span>Effort: Low</span>
+                                    </span>
+                                    <span class="flex items-center gap-1">
+                                        <i class="fas fa-calendar text-green-400"></i>
+                                        <span>Timeline: 1 day</span>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="p-4 bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
+                                <div class="flex justify-between items-start mb-2">
+                                    <h4 class="font-semibold text-white">📈 Medium: CDN Implementation</h4>
+                                    <span class="text-xs bg-blue-600 text-white px-2 py-1 rounded">P2</span>
+                                </div>
+                                <p class="text-sm text-slate-300 mb-3">Implement CDN for static assets to improve Apdex score and reduce response times.</p>
+                                <div class="flex gap-4 text-xs">
+                                    <span class="flex items-center gap-1">
+                                        <i class="fas fa-clock text-yellow-400"></i>
+                                        <span>Impact: Medium</span>
+                                    </span>
+                                    <span class="flex items-center gap-1">
+                                        <i class="fas fa-wrench text-yellow-400"></i>
+                                        <span>Effort: Medium</span>
+                                    </span>
+                                    <span class="flex items-center gap-1">
+                                        <i class="fas fa-calendar text-yellow-400"></i>
+                                        <span>Timeline: 2-3 weeks</span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Root Cause Analysis -->
+                    <div class="ai-insight glass-card p-6 rounded-xl">
+                        <div class="flex items-center gap-3 mb-4">
+                            <i class="fas fa-search text-blue-400 text-xl"></i>
+                            <h3 class="text-xl font-semibold text-white">Automated Root Cause Analysis</h3>
+                        </div>
+
+                        <div class="p-4 bg-slate-800/50 rounded-lg">
+                            <h4 class="font-semibold text-white mb-3">Database Connection Pool Exhaustion Analysis</h4>
+                            <div class="space-y-3">
+                                <div class="flex items-start gap-3">
+                                    <div class="w-2 h-2 bg-red-500 rounded-full mt-2"></div>
+                                    <div>
+                                        <p class="text-sm text-slate-300"><strong>Primary Cause:</strong> Connection pool size (50) insufficient for peak traffic (1,200 RPS)</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-start gap-3">
+                                    <div class="w-2 h-2 bg-yellow-500 rounded-full mt-2"></div>
+                                    <div>
+                                        <p class="text-sm text-slate-300"><strong>Contributing Factor:</strong> Long-running queries holding connections longer than expected</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-start gap-3">
+                                    <div class="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                                    <div>
+                                        <p class="text-sm text-slate-300"><strong>Recommendation:</strong> Increase connection pool to 150 and implement query timeout of 10 seconds</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Executive Summary (Always Visible) -->
+        <section class="glass-card p-8 rounded-xl mb-12">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-3xl font-bold text-white flex items-center gap-3">
+                    <i class="fas fa-chart-pie text-green-400"></i>
+                    Executive Summary
+                </h2>
+                <button onclick="toggleCollapse('executive-details')" class="text-purple-400 hover:text-purple-300">
+                    <i class="fas fa-chevron-down transform transition-transform" id="executive-toggle"></i>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="text-center p-4 bg-green-900/20 rounded-lg border border-green-500/30">
+                    <div class="text-2xl font-bold text-green-400 mb-1">Stable</div>
+                    <div class="text-sm text-slate-300">Overall System Health</div>
+                </div>
+                <div class="text-center p-4 bg-yellow-900/20 rounded-lg border border-yellow-500/30">
+                    <div class="text-2xl font-bold text-yellow-400 mb-1">3</div>
+                    <div class="text-sm text-slate-300">Actions Required</div>
+                </div>
+                <div class="text-center p-4 bg-blue-900/20 rounded-lg border border-blue-500/30">
+                    <div class="text-2xl font-bold text-blue-400 mb-1">99.87%</div>
+                    <div class="text-sm text-slate-300">Availability This Month</div>
+                </div>
+            </div>
+
+            <div id="executive-details" class="collapsible-content">
+                <p class="text-slate-300 leading-relaxed mb-4">
+                    The multi-service platform demonstrates strong overall reliability with 99.87% availability, though falling slightly short of the 99.9% SLO target.
+                    Key strengths include robust error handling (0.45% error rate) and efficient incident response (22-minute MTTR).
+                </p>
+                <p class="text-slate-300 leading-relaxed">
+                    Critical attention is required for database performance optimization, as 1,200+ slow queries are impacting user experience and system efficiency.
+                    Implementing the AI-recommended improvements will enhance system resilience and ensure SLO compliance in future reporting periods.
+                </p>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // Initialize charts
+        Chart.defaults.color = '#e2e8f0';
+        Chart.defaults.font.family = 'Inter';
+
+        // Response Time Chart
+        const responseTimeCtx = document.getElementById('responseTimeChart').getContext('2d');
+        new Chart(responseTimeCtx, {
+            type: 'line',
+            data: {
+                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                datasets: [{
+                    label: 'Response Time (ms)',
+                    data: [750, 820, 890, 820],
+                    borderColor: '#8b5cf6',
+                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                    },
+                    x: {
+                        grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                    }
+                }
+            }
+        });
+
+        // Error Rate Chart
+        const errorRateCtx = document.getElementById('errorRateChart').getContext('2d');
+        new Chart(errorRateCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                datasets: [{
+                    label: 'Error Rate (%)',
+                    data: [0.32, 0.45, 0.58, 0.41],
+                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#f59e0b'],
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                    },
+                    x: {
+                        grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                    }
+                }
+            }
+        });
+
+        // Tab functionality
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Remove active class from all tab buttons
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('bg-purple-600', 'text-white');
+                button.classList.add('hover:bg-slate-700');
+            });
+
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+
+            // Add active class to clicked tab button
+            event.target.classList.add('bg-purple-600', 'text-white');
+            event.target.classList.remove('hover:bg-slate-700');
+        }
+
+        // Collapsible functionality
+        function toggleCollapse(elementId) {
+            const element = document.getElementById(elementId);
+            const toggle = document.getElementById(elementId.replace('-details', '-toggle'));
+
+            if (element.classList.contains('open')) {
+                element.classList.remove('open');
+                toggle.style.transform = 'rotate(0deg)';
+            } else {
+                element.classList.add('open');
+                toggle.style.transform = 'rotate(180deg)';
+            }
+        }
+
+        // Theme toggle
+        function toggleTheme() {
+            // Implementation for theme switching
+            console.log('Theme toggle clicked');
+        }
+
+        // Time range selector
+        function setTimeRange(range) {
+            document.querySelectorAll('[onclick^="setTimeRange"]').forEach(btn => {
+                btn.classList.remove('bg-purple-600');
+                btn.classList.add('bg-slate-700');
+            });
+            event.target.classList.remove('bg-slate-700');
+            event.target.classList.add('bg-purple-600');
+            console.log('Time range set to:', range);
+        }
+
+        // Export functions
+        function exportToPDF() {
+            console.log('Exporting to PDF...');
+        }
+
+        function exportToCSV() {
+            console.log('Exporting to CSV...');
+        }
+
+        function shareReport() {
+            console.log('Sharing report...');
+        }
+
+        // Initialize tooltips and animations
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add any initialization code here
+            console.log('Advanced SRE Dashboard loaded');
+        });
+    </script>
+</body>
+</html>

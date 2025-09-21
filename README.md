@@ -85,7 +85,7 @@ A comprehensive, generic Site Reliability Engineering (SRE) analytics and report
 1. **Clone the repository**:
    ```bash
    git clone <repository-url>
-   cd ecommerce-sre-analytics
+   cd sre-analytics
    ```
 
 2. **Install Python dependencies**:
@@ -93,7 +93,12 @@ A comprehensive, generic Site Reliability Engineering (SRE) analytics and report
    pip install -r requirements.txt
    ```
 
-3. **Configure your data sources** (`config/ecommerce_sources_config.yaml`):
+3. **Install browser PDF dependencies**:
+   ```bash
+   pip install pyppeteer
+   ```
+
+4. **Configure your data sources** (`config/ecommerce_sources_config.yaml`):
    ```yaml
    data_sources:
      # Prometheus (from your e-commerce stack)
@@ -139,10 +144,15 @@ python app.py
 # Visit http://localhost:5000 for web interface
 ```
 
+**Enhanced template demonstration**:
+```bash
+python demo_enhanced_template.py
+```
+
 ## 📁 Enhanced Project Structure
 
 ```
-ecommerce-sre-analytics/
+sre-analytics/
 ├── src/
 │   ├── data_sources/                    # 🔌 UNIVERSAL DATA CONNECTORS
 │   │   ├── base.py                      # Abstract data source interfaces
@@ -157,6 +167,7 @@ ecommerce-sre-analytics/
 │   │   └── multi_source_config.py       # Universal config management
 │   └── reports/                         # 📊 ADVANCED REPORTING
 │       ├── enhanced_sre_report_system.py # Enhanced report generation
+│       ├── browser_pdf_generator.py      # Browser-based PDF generation
 │       └── weasyprint_pdf_generator.py   # Professional PDF output
 ├── config/
 │   ├── ecommerce_sources_config.yaml    # E-commerce specific config
@@ -168,6 +179,77 @@ ecommerce-sre-analytics/
 ├── test_ecommerce_integration.py       # E-commerce integration test
 └── app.py                               # Web interface
 ```
+
+## 🎨 Enhanced Reporting System
+
+### Modern Template Features
+The platform includes a completely redesigned reporting system with professional aesthetics and advanced functionality:
+
+#### 🎯 Browser PDF Generation
+- **Pixel-Perfect Rendering**: Uses headless browser (Pyppeteer) for exact HTML-to-PDF conversion
+- **No Data Loss**: Advanced page break handling prevents metrics from being cut across pages
+- **Uniform Layout**: Professional PDF layout with consistent spacing and formatting
+- **Interactive Elements**: Charts and visualizations properly rendered in PDF format
+
+#### 🎨 Modern Design Elements
+- **Glass Morphism UI**: Professional aesthetic with transparency effects and backdrop blur
+- **Tailwind CSS Integration**: Responsive design that works on desktop, tablet, and mobile
+- **Inter Font Family**: Modern typography for excellent readability
+- **Status Indicators**: Animated status indicators with pulse and ripple effects
+- **Color-Coded Metrics**: Green (compliant), yellow (at-risk), red (breached) color scheme
+
+#### 📊 Advanced Visualizations
+- **Chart.js Integration**: Interactive charts for trend analysis and metrics visualization
+- **Base64 Chart Embedding**: Charts properly embedded in PDF reports
+- **30-Day Trend Analysis**: Historical data visualization with predictive patterns
+- **Real-time Updates**: Dynamic data updates in web interface
+
+#### 🤖 AI-Powered Content
+- **LLM Analysis**: OpenAI GPT integration for intelligent performance analysis
+- **Contextual Recommendations**: Business-aware suggestions with impact scoring
+- **Incident Analysis**: Comprehensive incident reporting with root cause analysis
+- **Performance Insights**: AI-generated summaries and optimization recommendations
+
+### Template Comparison
+
+| Feature | Basic Template | Enhanced Template |
+|---------|---------------|-------------------|
+| **Design** | Simple dark theme | Modern glass morphism |
+| **Layout** | Basic grid | Responsive Tailwind CSS |
+| **Icons** | Text symbols | Font Awesome icons |
+| **Charts** | Static images | Interactive Chart.js |
+| **PDF Quality** | Basic conversion | Browser-rendered pixel-perfect |
+| **Page Breaks** | May cut content | Smart page break handling |
+| **AI Integration** | None | Full LLM analysis |
+| **Mobile Support** | Limited | Fully responsive |
+
+### Report Generation Options
+
+```bash
+# Generate enhanced reports with browser PDF
+python demo_enhanced_template.py
+
+# Test browser PDF standalone
+python test_browser_pdf_standalone.py
+
+# Compare HTML vs PDF output
+python test_browser_pdf_matching.py
+```
+
+### PDF Generation Methods
+
+1. **Browser PDF (Recommended)**: Uses headless Chrome for exact HTML rendering
+   - ✅ Identical to HTML appearance
+   - ✅ Perfect page break handling
+   - ✅ All CSS effects preserved
+   - ✅ Charts and images properly embedded
+
+2. **WeasyPrint PDF (Fallback)**: CSS-to-PDF conversion
+   - ⚠️ Simplified styling
+   - ⚠️ Limited CSS support
+   - ⚠️ May have rendering differences
+
+The system automatically uses browser PDF generation when available, falling back to WeasyPrint if needed.
 
 ## 🔧 Multi-Source Configuration
 
@@ -237,10 +319,20 @@ analytics:
 ```
 
 ### Export Formats
-- **Executive PDF**: High-quality reports for stakeholders
-- **Interactive HTML**: Real-time dashboards with drill-down
+- **Browser PDF**: Pixel-perfect PDF generation using headless browser technology
+- **Executive PDF**: High-quality reports with proper page break handling
+- **Interactive HTML**: Real-time dashboards with modern glass morphism design
 - **JSON API**: Integration with external systems
 - **Markdown**: Documentation-friendly format
+
+### Enhanced Report Features
+- **🎨 Modern Glass Morphism Design**: Professional aesthetic with Tailwind CSS
+- **📊 Interactive Visualizations**: Chart.js integration with dynamic data
+- **🤖 AI-Powered Insights**: LLM-generated recommendations and analysis
+- **📱 Responsive Layout**: Optimized for desktop, tablet, and mobile viewing
+- **🔄 Real-time Trend Analysis**: 30-day historical data with predictive patterns
+- **🚨 Incident Analysis**: Comprehensive incident reporting with impact assessment
+- **📄 Uniform Page Breaks**: Professional PDF layout with no data loss across pages
 
 ## 🏪 E-commerce Specific Features
 
@@ -276,7 +368,7 @@ cd /Users/shiva/Projects/ecommerce-microservices
 docker-compose -f docker-compose-complete.yml up -d
 
 # Start analytics platform
-cd /Users/shiva/Projects/ecommerce-sre-analytics
+cd /Users/shiva/Projects/sre-analytics
 docker-compose up -d
 ```
 
@@ -354,7 +446,7 @@ kubectl apply -f k8s/multi-source-analytics.yaml
 
 3. **Run analytics on your live data**:
    ```bash
-   cd /Users/shiva/Projects/ecommerce-sre-analytics
+   cd /Users/shiva/Projects/sre-analytics
    python test_ecommerce_integration.py
    ```
 
@@ -376,8 +468,14 @@ python test_ecommerce_integration.py
 # Start web interface
 python app.py
 
+# Generate enhanced template report
+python demo_enhanced_template.py
+
 # Generate sample report
 python generate_sre_report.py
+
+# Test browser PDF generation
+python test_browser_pdf_standalone.py
 
 # Docker deployment
 docker-compose up -d
@@ -405,6 +503,9 @@ MIT License - see LICENSE file for details.
 **Key Benefits**:
 - ✅ **Multi-source data collection** from ANY monitoring tool
 - ✅ **AI-powered recommendations** with business context
+- ✅ **Modern glass morphism UI** with professional aesthetics
+- ✅ **Browser PDF generation** with pixel-perfect rendering
+- ✅ **Smart page break handling** - no data loss across pages
 - ✅ **E-commerce optimized** with service-specific SLOs
 - ✅ **Production ready** with Docker and Kubernetes support
 - ✅ **Vendor independent** - no monitoring tool lock-in

@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app_name }} - Advanced SRE Analytics Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --success-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            --warning-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --danger-gradient: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+            --info-gradient: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+            --dark-gradient: linear-gradient(135deg, #2c3e50 0%, #1a252f 100%);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+            margin: 0;
+            padding: 0;
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .glass-card:hover {
+            background: rgba(30, 41, 59, 0.8);
+            border-color: rgba(148, 163, 184, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        .metric-card {
+            background: var(--dark-gradient);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .metric-card:hover::before {
+            left: 100%;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border-color: rgba(148, 163, 184, 0.3);
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+            position: relative;
+        }
+
+        .status-indicator::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            border-radius: 50%;
+            border: 2px solid currentColor;
+            opacity: 0.3;
+            animation: ripple 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        @keyframes ripple {
+            0% { transform: scale(0.8); opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+
+        .gradient-text {
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .ai-insight {
+            background: linear-gradient(135deg, rgba(124, 58, 237, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
+            border-left: 4px solid #8b5cf6;
+        }
+
+        .trend-up { color: #10b981; }
+        .trend-down { color: #ef4444; }
+        .trend-neutral { color: #f59e0b; }
+
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+
+        .progress-ring-circle {
+            stroke-dasharray: 283;
+            stroke-dashoffset: 283;
+            transition: stroke-dashoffset 0.35s;
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+            }
+            .glass-card, .metric-card {
+                background: white !important;
+                border: 1px solid #ccc !important;
+                box-shadow: none !important;
+            }
+            .gradient-text {
+                color: #333 !important;
+                -webkit-text-fill-color: initial !important;
+            }
+            .status-indicator {
+                animation: none !important;
+            }
+            .status-indicator::after {
+                animation: none !important;
+            }
+        }
+
+        /* Enhanced responsive design */
+        @media (max-width: 768px) {
+            .grid-responsive {
+                grid-template-columns: 1fr !important;
+            }
+            .text-5xl { font-size: 2.5rem !important; }
+            .p-8 { padding: 1rem !important; }
+            .gap-6 { gap: 1rem !important; }
+        }
+    </style>
+</head>
+<body class="p-6">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="text-center mb-12">
+            <div class="glass-card p-8 rounded-2xl">
+                <h1 class="text-5xl font-bold gradient-text mb-4">
+                    🚀 {{ app_name }}
+                </h1>
+                <p class="text-2xl text-slate-300 mb-2">Advanced SRE Analytics Dashboard</p>
+                <div class="flex justify-center items-center gap-6 mb-4 flex-wrap">
+                    <div class="text-center">
+                        <p class="text-lg text-slate-400">Report Generated</p>
+                        <p class="text-xl font-semibold text-white">{{ report_date }}</p>
+                    </div>
+                    <div class="w-px h-12 bg-slate-600 hidden md:block"></div>
+                    <div class="text-center">
+                        <p class="text-lg text-slate-400">Data Period</p>
+                        <p class="text-xl font-semibold text-white">Last 30 Days</p>
+                    </div>
+                    <div class="w-px h-12 bg-slate-600 hidden md:block"></div>
+                    <div class="text-center">
+                        <p class="text-lg text-slate-400">System Status</p>
+                        <div class="flex items-center justify-center gap-2">
+                            <div class="status-indicator {% if summary.health_status == 'Healthy' %}bg-green-500{% else %}bg-yellow-500{% endif %}"></div>
+                            <span class="{% if summary.health_status == 'Healthy' %}text-green-400{% else %}text-yellow-400{% endif %} font-semibold">{{ summary.health_status }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Executive Summary -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold text-white mb-6 flex items-center gap-3">
+                <i class="fas fa-chart-pie text-green-400"></i>
+                Executive Summary
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+                <!-- SLO Compliance -->
+                <div class="metric-card p-6 rounded-xl relative">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="status-indicator {% if summary.compliance_percentage >= 99 %}bg-green-500{% elif summary.compliance_percentage >= 95 %}bg-yellow-500{% else %}bg-red-500{% endif %}"></div>
+                            <h3 class="text-sm font-semibold text-white">SLO Compliance</h3>
+                        </div>
+                        <div class="relative w-12 h-12">
+                            <svg class="progress-ring w-12 h-12">
+                                <circle class="progress-ring-circle" stroke="{% if summary.compliance_percentage >= 99 %}#10b981{% elif summary.compliance_percentage >= 95 %}#f59e0b{% else %}#ef4444{% endif %}" stroke-width="3" fill="transparent" r="18" cx="24" cy="24" style="stroke-dashoffset: {{ 283 - (summary.compliance_percentage / 100 * 283) }};"/>
+                            </svg>
+                            <span class="absolute inset-0 flex items-center justify-center text-xs font-bold {% if summary.compliance_percentage >= 99 %}text-green-400{% elif summary.compliance_percentage >= 95 %}text-yellow-400{% else %}text-red-400{% endif %}">{{ "%.0f"|format(summary.compliance_percentage) }}%</span>
+                        </div>
+                    </div>
+                    <p class="text-2xl font-bold text-white mb-1">{{ "%.1f"|format(summary.compliance_percentage) }}%</p>
+                    <p class="text-xs text-slate-400">{{ summary.compliant_count }}/{{ summary.total_metrics }} compliant</p>
+                </div>
+
+                <!-- Error Budget -->
+                <div class="metric-card p-6 rounded-xl relative">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="status-indicator bg-blue-500"></div>
+                            <h3 class="text-sm font-semibold text-white">Services</h3>
+                        </div>
+                        <i class="fas fa-server text-blue-400 text-xl"></i>
+                    </div>
+                    <p class="text-2xl font-bold text-white mb-1">{{ summary.total_services }}</p>
+                    <p class="text-xs text-slate-400">Total monitored</p>
+                </div>
+
+                <!-- At Risk -->
+                <div class="metric-card p-6 rounded-xl relative">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="status-indicator bg-yellow-500"></div>
+                            <h3 class="text-sm font-semibold text-white">At Risk</h3>
+                        </div>
+                        <i class="fas fa-exclamation-triangle text-yellow-400 text-xl"></i>
+                    </div>
+                    <p class="text-2xl font-bold text-white mb-1">{{ summary.at_risk_count }}</p>
+                    <p class="text-xs text-slate-400">Need attention</p>
+                </div>
+
+                <!-- Breached -->
+                <div class="metric-card p-6 rounded-xl relative">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="status-indicator bg-red-500"></div>
+                            <h3 class="text-sm font-semibold text-white">Breached</h3>
+                        </div>
+                        <i class="fas fa-times-circle text-red-400 text-xl"></i>
+                    </div>
+                    <p class="text-2xl font-bold text-white mb-1">{{ summary.breached_count }}</p>
+                    <p class="text-xs text-slate-400">Critical issues</p>
+                </div>
+
+                <!-- Overall Health -->
+                <div class="metric-card p-6 rounded-xl relative">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="status-indicator {% if summary.health_status == 'Healthy' %}bg-green-500{% else %}bg-yellow-500{% endif %}"></div>
+                            <h3 class="text-sm font-semibold text-white">Health</h3>
+                        </div>
+                        <i class="fas fa-heartbeat {% if summary.health_status == 'Healthy' %}text-green-400{% else %}text-yellow-400{% endif %} text-xl"></i>
+                    </div>
+                    <p class="text-lg font-bold text-white mb-1">{{ summary.health_status }}</p>
+                    <p class="text-xs text-slate-400">System status</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Performance Trends -->
+        {% if trend_charts %}
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold text-white mb-6 flex items-center gap-3">
+                <i class="fas fa-chart-area text-blue-400"></i>
+                Performance Trends & Analysis
+            </h2>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {% for chart_name, chart_data in trend_charts.items() %}
+                <div class="glass-card p-6 rounded-xl">
+                    <h3 class="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+                        <i class="fas fa-chart-line text-purple-400"></i>
+                        {{ chart_name.replace('_', ' ').title() }} Trends
+                    </h3>
+                    <div class="bg-white p-4 rounded-lg">
+                        <img src="{{ chart_data }}" alt="{{ chart_name }} Trend Chart" class="w-full h-auto rounded">
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Detailed Metrics -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold text-white mb-6 flex items-center gap-3">
+                <i class="fas fa-tachometer-alt text-purple-400"></i>
+                Detailed Metrics Analysis
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {% for metric in metrics %}
+                <div class="metric-card p-6 rounded-xl">
+                    <div class="flex items-center mb-4">
+                        <div class="status-indicator {% if metric.status == 'compliant' %}bg-green-500{% elif metric.status == 'at_risk' %}bg-yellow-500{% else %}bg-red-500{% endif %} mr-3"></div>
+                        <h3 class="text-lg font-semibold text-white">{{ metric.service_name }}</h3>
+                    </div>
+                    <div class="mb-2">
+                        <div class="text-sm text-slate-400 mb-1">{{ metric.metric_name.replace('_', ' ').title() }}</div>
+                        <p class="text-3xl font-bold text-white">{{ "%.2f"|format(metric.current_value) }}{{ metric.unit }}</p>
+                    </div>
+                    <p class="text-sm text-slate-400 mb-3">Target: {{ "%.2f"|format(metric.slo_target) }}{{ metric.unit }}</p>
+
+                    <div class="mt-4 p-3 {% if metric.status == 'compliant' %}bg-green-900/20 border-l-4 border-green-500{% elif metric.status == 'at_risk' %}bg-yellow-900/20 border-l-4 border-yellow-500{% else %}bg-red-900/20 border-l-4 border-red-500{% endif %} rounded">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium {% if metric.status == 'compliant' %}text-green-200{% elif metric.status == 'at_risk' %}text-yellow-200{% else %}text-red-200{% endif %}">
+                                {{ metric.status.title() }}
+                            </span>
+                            <span class="text-xs text-slate-400">
+                                Error Budget: {{ "%.1f"|format(metric.error_budget_consumed) }}%
+                            </span>
+                        </div>
+                        {% if metric.description %}
+                        <p class="text-sm text-slate-300">{{ metric.description }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- AI-Powered Insights -->
+        {% if llm_analysis %}
+        <section class="mb-12">
+            <div class="ai-insight glass-card p-6 rounded-xl">
+                <div class="flex items-center gap-3 mb-4">
+                    <i class="fas fa-brain text-purple-400 text-2xl"></i>
+                    <h2 class="text-3xl font-bold text-white">AI-Powered Performance Analysis</h2>
+                    <span class="px-3 py-1 bg-purple-600 text-white text-xs rounded-full">AI Generated</span>
+                </div>
+                <div class="prose prose-invert max-w-none">
+                    <div style="white-space: pre-line;" class="text-slate-300 leading-relaxed">{{ llm_analysis }}</div>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Incident Analysis -->
+        {% if has_incident and incident %}
+        <section class="mb-12">
+            <div class="{% if incident.severity == 'Critical' %}bg-red-900/20 border-red-500{% elif incident.severity == 'High' %}bg-orange-900/20 border-orange-500{% else %}bg-yellow-900/20 border-yellow-500{% endif %} glass-card p-8 rounded-xl border-l-4">
+                <h2 class="text-3xl font-bold text-white mb-6 flex items-center gap-3">
+                    <i class="fas fa-exclamation-triangle text-orange-400"></i>
+                    Incident Analysis Report
+                </h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <div class="text-center p-4 bg-slate-800/50 rounded-lg">
+                        <div class="text-lg font-bold text-white mb-1">{{ incident.incident_id }}</div>
+                        <div class="text-sm text-slate-400">Incident ID</div>
+                    </div>
+                    <div class="text-center p-4 bg-slate-800/50 rounded-lg">
+                        <div class="text-lg font-bold {% if incident.severity == 'Critical' %}text-red-400{% elif incident.severity == 'High' %}text-orange-400{% else %}text-yellow-400{% endif %} mb-1">{{ incident.severity }}</div>
+                        <div class="text-sm text-slate-400">Severity</div>
+                    </div>
+                    <div class="text-center p-4 bg-slate-800/50 rounded-lg">
+                        <div class="text-lg font-bold text-white mb-1">{{ incident.start_time.strftime('%H:%M') }} - {{ incident.end_time.strftime('%H:%M') if incident.end_time else 'Ongoing' }}</div>
+                        <div class="text-sm text-slate-400">Duration</div>
+                    </div>
+                    <div class="text-center p-4 bg-slate-800/50 rounded-lg">
+                        <div class="text-lg font-bold text-white mb-1">{{ incident.affected_services|length }}</div>
+                        <div class="text-sm text-slate-400">Services Affected</div>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold text-white mb-3">Description</h3>
+                    <p class="text-slate-300">{{ incident.description }}</p>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold text-white mb-3">Affected Services</h3>
+                    <div class="flex flex-wrap gap-2">
+                        {% for service in incident.affected_services %}
+                        <span class="px-3 py-1 bg-slate-700 text-slate-300 rounded-full text-sm">{{ service }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold text-white mb-3">Root Cause Analysis</h3>
+                    <p class="text-slate-300">{{ incident.root_cause }}</p>
+                </div>
+
+                {% if incident.llm_analysis %}
+                <div class="ai-insight glass-card p-6 rounded-xl mb-6">
+                    <h3 class="text-xl font-semibold text-white mb-3 flex items-center gap-2">
+                        <i class="fas fa-robot text-purple-400"></i>
+                        AI-Powered Deep Analysis
+                    </h3>
+                    <div style="white-space: pre-line;" class="text-slate-300 leading-relaxed">{{ incident.llm_analysis }}</div>
+                </div>
+                {% endif %}
+
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold text-white mb-3">Resolution Steps</h3>
+                    <ol class="list-decimal list-inside space-y-2">
+                        {% for step in incident.resolution_steps %}
+                        <li class="text-slate-300">{{ step }}</li>
+                        {% endfor %}
+                    </ol>
+                </div>
+
+                {% if incident.lessons_learned %}
+                <div class="bg-green-900/20 p-6 rounded-lg border-l-4 border-green-500">
+                    <h3 class="text-xl font-semibold text-white mb-3 flex items-center gap-2">
+                        <i class="fas fa-lightbulb text-green-400"></i>
+                        Lessons Learned
+                    </h3>
+                    <div style="white-space: pre-line;" class="text-green-100">{{ incident.lessons_learned }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Key Recommendations -->
+        <section class="glass-card p-8 rounded-xl mb-12">
+            <h2 class="text-3xl font-bold text-white mb-6 flex items-center gap-3">
+                <i class="fas fa-lightbulb text-yellow-400"></i>
+                Key Recommendations
+            </h2>
+
+            <div class="space-y-4">
+                {% if summary.breached_count > 0 %}
+                <div class="p-4 bg-red-900/20 rounded-lg border-l-4 border-red-500">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i class="fas fa-exclamation-circle text-red-400"></i>
+                        <h4 class="font-semibold text-white">🚨 Critical: Address SLO Breaches</h4>
+                    </div>
+                    <p class="text-sm text-red-200">{{ summary.breached_count }} metric(s) have breached SLO targets and require immediate attention.</p>
+                </div>
+                {% endif %}
+
+                {% if summary.at_risk_count > 0 %}
+                <div class="p-4 bg-yellow-900/20 rounded-lg border-l-4 border-yellow-500">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                        <h4 class="font-semibold text-white">⚡ High: Monitor At-Risk Services</h4>
+                    </div>
+                    <p class="text-sm text-yellow-200">{{ summary.at_risk_count }} metric(s) are at risk of breaching SLO targets.</p>
+                </div>
+                {% endif %}
+
+                <div class="p-4 bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i class="fas fa-chart-line text-blue-400"></i>
+                        <h4 class="font-semibold text-white">📈 Medium: Performance Optimization</h4>
+                    </div>
+                    <p class="text-sm text-blue-200">Review error budget consumption and implement proactive alerting for trend-based predictions.</p>
+                </div>
+
+                <div class="p-4 bg-green-900/20 rounded-lg border-l-4 border-green-500">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i class="fas fa-cogs text-green-400"></i>
+                        <h4 class="font-semibold text-white">🔧 Low: Process Improvements</h4>
+                    </div>
+                    <p class="text-sm text-green-200">Update incident response procedures and schedule regular SLO review meetings with stakeholders.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="text-center py-8 border-t border-slate-700">
+            <div class="text-sm text-slate-400">
+                <p class="mb-2"><strong>Enhanced SRE Analytics Platform</strong></p>
+                <p class="mb-2">Generated on {{ report_date }} at {{ report_time }}</p>
+                <div class="flex justify-center gap-4 text-xs flex-wrap">
+                    <span>✅ AI-Powered Analysis</span>
+                    <span>✅ Real-time SLO Monitoring</span>
+                    <span>✅ Trend Visualizations</span>
+                    <span>✅ Incident RCA</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Enhanced interactivity for better UX
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add smooth scrolling for any anchor links
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    document.querySelector(this.getAttribute('href')).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                });
+            });
+
+            // Add print button functionality
+            const printBtn = document.createElement('button');
+            printBtn.innerHTML = '<i class="fas fa-print"></i> Print Report';
+            printBtn.className = 'fixed bottom-4 right-4 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg shadow-lg transition-colors hidden-print';
+            printBtn.onclick = () => window.print();
+            document.body.appendChild(printBtn);
+
+            console.log('Enhanced SRE Dashboard loaded successfully');
+        });
+    </script>
+</body>
+</html>

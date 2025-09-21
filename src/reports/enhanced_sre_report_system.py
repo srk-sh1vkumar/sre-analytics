@@ -42,6 +42,13 @@ except (ImportError, OSError) as e:
     # WeasyPrint may fail due to missing system dependencies
 
 try:
+    from .browser_pdf_generator import BrowserPDFGenerator
+    BROWSER_PDF_AVAILABLE = True
+except ImportError as e:
+    BROWSER_PDF_AVAILABLE = False
+    print(f"Browser PDF generator not available: {e}")
+
+try:
     from openai import OpenAI
     OPENAI_AVAILABLE = True
 except ImportError:
@@ -695,13 +702,17 @@ class EnhancedSREReportSystem:
     def create_comprehensive_html_report(self, metrics: List[SLOMetric],
                                        incident: IncidentData = None,
                                        output_path: str = None) -> str:
-        """Create comprehensive HTML report with trends and incident analysis"""
+        """Create comprehensive HTML report with trends and incident analysis using enhanced template"""
         if not output_path:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             output_path = f"reports/generated/comprehensive_sre_report_{timestamp}.html"
 
         # Create trend visualizations (base64 for HTML)
         trend_charts = self.create_trend_visualizations(metrics, save_images=False)
+
+        # Generate LLM analysis for performance insights
+        summary = self._create_summary_stats(metrics)
+        llm_analysis = self.llm_analyzer.analyze_performance_metrics(metrics, summary)
 
         # Prepare template data
         template_data = {
@@ -711,12 +722,13 @@ class EnhancedSREReportSystem:
             'metrics': metrics,
             'trend_charts': trend_charts,
             'incident': incident,
-            'summary': self._create_summary_stats(metrics),
-            'has_incident': incident is not None
+            'summary': summary,
+            'has_incident': incident is not None,
+            'llm_analysis': llm_analysis
         }
 
-        # Create and render HTML template
-        html_content = self._get_comprehensive_html_template()
+        # Load and render enhanced HTML template
+        html_content = self._get_enhanced_html_template()
         template = jinja2.Template(html_content)
         rendered_html = template.render(**template_data)
 
@@ -725,7 +737,7 @@ class EnhancedSREReportSystem:
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(rendered_html)
 
-        self.logger.info(f"Comprehensive HTML report saved to {output_path}")
+        self.logger.info(f"Enhanced HTML report saved to {output_path}")
         return output_path
 
     def _create_summary_stats(self, metrics: List[SLOMetric]) -> Dict[str, Any]:
@@ -745,33 +757,103 @@ class EnhancedSREReportSystem:
             'health_status': 'Healthy' if breached_count == 0 else 'Needs Attention'
         }
 
-    def create_simple_pdf_report(self, html_path: str, metrics: List[SLOMetric],
-                                incident: IncidentData = None, output_path: str = None) -> str:
-        """Create PDF report using WeasyPrint (preferred) or ReportLab fallback with charts"""
+    def create_enhanced_pdf_report(self, metrics: List[SLOMetric],
+                                 incident: IncidentData = None, output_path: str = None,
+                                 use_browser: bool = True) -> str:
+        """Create PDF report using enhanced template with browser or WeasyPrint"""
         if not output_path:
-            output_path = html_path.replace('.html', '.pdf')
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_path = f"reports/generated/enhanced_sre_report_{timestamp}.pdf"
 
-        # Try WeasyPrint first (high-quality PDF from HTML)
+        # Try browser PDF generation first for exact HTML matching
+        if use_browser and BROWSER_PDF_AVAILABLE:
+            try:
+                self.logger.info("Generating PDF using headless browser for exact HTML matching...")
+
+                # Generate the same HTML content that would be used for HTML reports
+                # Generate LLM analysis
+                summary = self._create_summary_stats(metrics)
+                llm_analysis = self.llm_analyzer.analyze_performance_metrics(metrics, summary)
+
+                # Create trend visualizations (base64 for charts)
+                trend_charts = self.create_trend_visualizations(metrics, save_images=False)
+
+                # Prepare template data (exact same as HTML)
+                template_data = {
+                    'app_name': self.app_name,
+                    'report_date': datetime.now().strftime("%B %d, %Y"),
+                    'report_time': datetime.now().strftime("%H:%M:%S UTC"),
+                    'metrics': metrics,
+                    'trend_charts': trend_charts,
+                    'incident': incident,
+                    'summary': summary,
+                    'has_incident': incident is not None,
+                    'llm_analysis': llm_analysis
+                }
+
+                # Use the EXACT SAME HTML template as HTML reports
+                html_template_content = self._get_enhanced_html_template()
+                template = jinja2.Template(html_template_content)
+                rendered_html = template.render(**template_data)
+
+                # Generate PDF with headless browser
+                browser_generator = BrowserPDFGenerator()
+                success = browser_generator.create_pdf_from_html_sync(rendered_html, output_path)
+
+                if success:
+                    self.logger.info(f"✅ Enhanced PDF generated with browser: {output_path}")
+                    return output_path
+                else:
+                    self.logger.warning("Browser PDF failed, falling back to WeasyPrint...")
+
+            except Exception as e:
+                self.logger.warning(f"Browser PDF failed: {e}, falling back to WeasyPrint...")
+
+        # Set up environment for WeasyPrint
+        import os
+        os.environ['PKG_CONFIG_PATH'] = '/opt/homebrew/lib/pkgconfig'
+        os.environ['DYLD_LIBRARY_PATH'] = '/opt/homebrew/lib'
+
+        # Try WeasyPrint as fallback
         if WEASYPRINT_AVAILABLE:
             try:
-                self.logger.info("Generating PDF using WeasyPrint...")
+                self.logger.info("Generating enhanced PDF using WeasyPrint...")
 
-                # Read and enhance HTML content
-                with open(html_path, 'r', encoding='utf-8') as f:
-                    html_content = f.read()
+                # Generate LLM analysis for PDF
+                summary = self._create_summary_stats(metrics)
+                llm_analysis = self.llm_analyzer.analyze_performance_metrics(metrics, summary)
 
-                enhanced_html = enhance_html_for_pdf(html_content)
+                # Create trend visualizations (base64 for PDF)
+                trend_charts = self.create_trend_visualizations(metrics, save_images=False)
+
+                # Prepare template data (same as HTML)
+                template_data = {
+                    'app_name': self.app_name,
+                    'report_date': datetime.now().strftime("%B %d, %Y"),
+                    'report_time': datetime.now().strftime("%H:%M:%S UTC"),
+                    'metrics': metrics,
+                    'trend_charts': trend_charts,
+                    'incident': incident,
+                    'summary': summary,
+                    'has_incident': incident is not None,
+                    'llm_analysis': llm_analysis
+                }
+
+                # Load PDF-optimized template
+                pdf_template_content = self._get_enhanced_pdf_template()
+                template = jinja2.Template(pdf_template_content)
+                rendered_html = template.render(**template_data)
 
                 # Generate PDF with WeasyPrint
                 pdf_generator = WeasyPrintPDFGenerator()
                 success = pdf_generator.create_pdf_from_html(
-                    enhanced_html,
+                    rendered_html,
                     output_path,
-                    base_url=f"file://{Path(html_path).parent.absolute()}/"
+                    base_url=f"file://{Path().absolute()}/"
                 )
 
                 if success:
-                    self.logger.info(f"✅ High-quality PDF generated with WeasyPrint: {output_path}")
+                    self.logger.info(f"✅ Enhanced PDF generated with WeasyPrint: {output_path}")
                     return output_path
                 else:
                     self.logger.warning("WeasyPrint failed, falling back to ReportLab...")
@@ -780,6 +862,16 @@ class EnhancedSREReportSystem:
                 self.logger.warning(f"WeasyPrint failed: {e}, falling back to ReportLab...")
 
         # Fallback to ReportLab if WeasyPrint fails
+        return self._create_reportlab_fallback_pdf(metrics, incident, output_path)
+
+    def create_simple_pdf_report(self, html_path: str, metrics: List[SLOMetric],
+                                incident: IncidentData = None, output_path: str = None) -> str:
+        """Create PDF report - now uses enhanced template by default"""
+        return self.create_enhanced_pdf_report(metrics, incident, output_path)
+
+    def _create_reportlab_fallback_pdf(self, metrics: List[SLOMetric],
+                                     incident: IncidentData = None, output_path: str = None) -> str:
+        """Fallback PDF generation using ReportLab"""
         if not REPORTLAB_AVAILABLE:
             self.logger.warning("Both WeasyPrint and ReportLab unavailable, skipping PDF generation")
             return ""
@@ -1021,6 +1113,121 @@ class EnhancedSREReportSystem:
             import traceback
             self.logger.error(f"Traceback: {traceback.format_exc()}")
             return ""
+
+    def _get_enhanced_html_template(self) -> str:
+        """Load enhanced HTML template from file"""
+        template_path = Path("templates/enhanced_sre_template.html")
+
+        # Try to load from templates directory
+        if template_path.exists():
+            try:
+                with open(template_path, 'r', encoding='utf-8') as f:
+                    return f.read()
+            except Exception as e:
+                self.logger.warning(f"Could not load enhanced template: {e}")
+
+        # Fallback to inline template if file not found
+        return self._get_comprehensive_html_template()
+
+    def _get_enhanced_pdf_template(self) -> str:
+        """Load enhanced PDF template - use same structure as HTML but with PDF-optimized CSS"""
+        # Always use the HTML template for consistent structure
+        html_template = self._get_enhanced_html_template()
+        return self._optimize_template_for_pdf(html_template)
+
+    def _optimize_template_for_pdf(self, html_content: str) -> str:
+        """Optimize HTML template for PDF rendering while preserving structure"""
+        import re
+
+        # Convert Tailwind classes to inline CSS for PDF compatibility
+        tailwind_conversions = [
+            # Grid system
+            (r'class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"',
+             'style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15pt;"'),
+
+            # Metric cards
+            (r'class="metric-card p-6 rounded-xl"',
+             'style="background: #2d3748; border: 1px solid #4a5568; padding: 15pt; border-radius: 8pt; margin-bottom: 10pt; page-break-inside: avoid;"'),
+
+            # Status indicators
+            (r'class="status-indicator ([^"]*) mr-3"',
+             r'style="width: 12pt; height: 12pt; border-radius: 50%; margin-right: 8pt; display: inline-block; \1"'),
+            (r'bg-green-500', 'background-color: #10b981;'),
+            (r'bg-yellow-500', 'background-color: #f59e0b;'),
+            (r'bg-red-500', 'background-color: #ef4444;'),
+
+            # Text styling
+            (r'class="text-lg font-semibold text-white"',
+             'style="font-size: 12pt; font-weight: 600; color: #ffffff;"'),
+            (r'class="text-3xl font-bold text-white"',
+             'style="font-size: 18pt; font-weight: bold; color: #ffffff;"'),
+            (r'class="text-sm text-slate-400 mb-1"',
+             'style="font-size: 9pt; color: #94a3b8; margin-bottom: 3pt;"'),
+            (r'class="text-sm text-slate-400 mb-3"',
+             'style="font-size: 9pt; color: #94a3b8; margin-bottom: 8pt;"'),
+            (r'class="text-sm text-slate-300"',
+             'style="font-size: 9pt; color: #cbd5e1;"'),
+
+            # Flexbox
+            (r'class="flex items-center mb-4"',
+             'style="display: flex; align-items: center; margin-bottom: 10pt;"'),
+            (r'class="flex items-center justify-between mb-2"',
+             'style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 5pt;"'),
+
+            # Status boxes
+            (r'class="mt-4 p-3 ([^"]*) rounded"',
+             r'style="margin-top: 10pt; padding: 8pt; border-radius: 4pt; \1"'),
+            (r'bg-green-900/20 border-l-4 border-green-500',
+             'background-color: rgba(6, 78, 59, 0.2); border-left: 3pt solid #10b981;'),
+            (r'bg-yellow-900/20 border-l-4 border-yellow-500',
+             'background-color: rgba(120, 53, 15, 0.2); border-left: 3pt solid #f59e0b;'),
+            (r'bg-red-900/20 border-l-4 border-red-500',
+             'background-color: rgba(127, 29, 29, 0.2); border-left: 3pt solid #ef4444;'),
+
+            # Status text colors
+            (r'class="text-sm font-medium text-green-200"',
+             'style="font-size: 9pt; font-weight: 500; color: #bbf7d0;"'),
+            (r'class="text-sm font-medium text-yellow-200"',
+             'style="font-size: 9pt; font-weight: 500; color: #fef3c7;"'),
+            (r'class="text-sm font-medium text-red-200"',
+             'style="font-size: 9pt; font-weight: 500; color: #fecaca;"'),
+            (r'class="text-xs text-slate-400"',
+             'style="font-size: 8pt; color: #94a3b8;"'),
+        ]
+
+        # Apply Tailwind conversions
+        for pattern, replacement in tailwind_conversions:
+            html_content = re.sub(pattern, replacement, html_content, flags=re.IGNORECASE)
+
+        # Convert Font Awesome icons to text symbols
+        icon_conversions = [
+            (r'<i class="fas fa-tachometer-alt[^"]*"></i>', '⚡'),
+            (r'<i class="fas fa-brain[^"]*"></i>', '🧠'),
+            (r'<i class="fas fa-[^"]*"></i>', '•'),  # Fallback for other icons
+        ]
+
+        for pattern, replacement in icon_conversions:
+            html_content = re.sub(pattern, replacement, html_content, flags=re.IGNORECASE)
+
+        # Remove/replace elements that don't work in PDF
+        pdf_optimizations = [
+            # Remove Chart.js scripts (charts will be base64 images instead)
+            (r'<script.*?chart\.js.*?</script>', ''),
+            # Remove Tailwind CSS CDN
+            (r'<script.*?tailwindcss.*?</script>', ''),
+            # Remove Font Awesome CSS
+            (r'<link.*?font-awesome.*?>', ''),
+            # Remove interactive elements
+            (r'<div class="floating-menu">.*?</div>', ''),
+            (r'onclick="[^"]*"', ''),
+            # Update body with print-friendly styles
+            (r'<body[^>]*>', '<body style="font-family: Inter, Arial, sans-serif; font-size: 10pt; line-height: 1.4; color: #1f2937; background: white; margin: 0; padding: 20pt;">'),
+        ]
+
+        for pattern, replacement in pdf_optimizations:
+            html_content = re.sub(pattern, replacement, html_content, flags=re.DOTALL | re.IGNORECASE)
+
+        return html_content
 
     def _get_comprehensive_html_template(self) -> str:
         """Return comprehensive HTML template"""

@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app_name }} - Advanced SRE Analytics Dashboard</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --info-color: #3b82f6;
+            --dark-color: #1e293b;
+            --light-color: #f8fafc;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            line-height: 1.6;
+            color: #1f2937;
+            background: white;
+            font-size: 11px;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            border-radius: 8px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .header .subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .header .meta {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 15px;
+            font-size: 12px;
+        }
+
+        .header .meta-item {
+            text-align: center;
+        }
+
+        .header .meta-label {
+            opacity: 0.8;
+            font-size: 10px;
+            margin-bottom: 4px;
+        }
+
+        .header .meta-value {
+            font-weight: 600;
+        }
+
+        .section {
+            margin-bottom: 25px;
+            break-inside: avoid;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--dark-color);
+            margin-bottom: 15px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title .icon {
+            font-size: 18px;
+            color: var(--primary-color);
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .summary-card {
+            background: var(--light-color);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+            text-align: center;
+        }
+
+        .summary-card.success { border-left-color: var(--success-color); }
+        .summary-card.warning { border-left-color: var(--warning-color); }
+        .summary-card.danger { border-left-color: var(--danger-color); }
+        .summary-card.info { border-left-color: var(--info-color); }
+
+        .summary-card .label {
+            font-size: 10px;
+            color: #6b7280;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .summary-card .value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--dark-color);
+        }
+
+        .summary-card .description {
+            font-size: 9px;
+            color: #9ca3af;
+            margin-top: 2px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .metric-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            position: relative;
+            break-inside: avoid;
+        }
+
+        .metric-card .header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            background: none;
+            padding: 0;
+            color: inherit;
+            border-radius: 0;
+        }
+
+        .metric-card .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .metric-card .status-dot.success { background: var(--success-color); }
+        .metric-card .status-dot.warning { background: var(--warning-color); }
+        .metric-card .status-dot.danger { background: var(--danger-color); }
+
+        .metric-card .service-name {
+            font-weight: 600;
+            color: var(--dark-color);
+            font-size: 12px;
+        }
+
+        .metric-card .metric-name {
+            font-size: 10px;
+            color: #6b7280;
+            margin-bottom: 5px;
+        }
+
+        .metric-card .metric-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--dark-color);
+            margin-bottom: 5px;
+        }
+
+        .metric-card .metric-target {
+            font-size: 10px;
+            color: #9ca3af;
+            margin-bottom: 10px;
+        }
+
+        .metric-card .status-box {
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 10px;
+        }
+
+        .metric-card .status-box.success {
+            background: rgba(16, 185, 129, 0.1);
+            border-left: 3px solid var(--success-color);
+        }
+
+        .metric-card .status-box.warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 3px solid var(--warning-color);
+        }
+
+        .metric-card .status-box.danger {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 3px solid var(--danger-color);
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .status-text {
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+
+        .status-text.success { color: var(--success-color); }
+        .status-text.warning { color: var(--warning-color); }
+        .status-text.danger { color: var(--danger-color); }
+
+        .error-budget {
+            font-size: 9px;
+            color: #6b7280;
+        }
+
+        .chart-container {
+            background: var(--light-color);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            text-align: center;
+        }
+
+        .chart-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+
+        .chart-title {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--dark-color);
+        }
+
+        .ai-insight {
+            background: linear-gradient(135deg, rgba(124, 58, 237, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
+            border-left: 4px solid #8b5cf6;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .ai-insight .header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            background: none;
+            padding: 0;
+            color: inherit;
+            border-radius: 0;
+        }
+
+        .ai-insight .icon {
+            color: #8b5cf6;
+            font-size: 16px;
+        }
+
+        .ai-insight .title {
+            font-weight: 600;
+            color: var(--dark-color);
+        }
+
+        .ai-insight .badge {
+            background: #8b5cf6;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 8px;
+            font-weight: 600;
+        }
+
+        .ai-insight .content {
+            font-size: 11px;
+            line-height: 1.5;
+            color: #374151;
+        }
+
+        .incident-section {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 4px solid var(--danger-color);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            break-inside: avoid;
+        }
+
+        .incident-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin: 15px 0;
+        }
+
+        .incident-card {
+            background: rgba(0, 0, 0, 0.05);
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .incident-card .value {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--dark-color);
+        }
+
+        .incident-card .label {
+            font-size: 9px;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+
+        .incident-details {
+            margin: 15px 0;
+        }
+
+        .incident-details h4 {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--dark-color);
+        }
+
+        .incident-details p, .incident-details div {
+            font-size: 11px;
+            line-height: 1.4;
+            color: #374151;
+        }
+
+        .service-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin: 8px 0;
+        }
+
+        .service-tag {
+            background: #e5e7eb;
+            color: #374151;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 9px;
+            font-weight: 500;
+        }
+
+        .recommendations {
+            background: var(--light-color);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .recommendation-item {
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 6px;
+            font-size: 11px;
+        }
+
+        .recommendation-item.critical {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 3px solid var(--danger-color);
+        }
+
+        .recommendation-item.high {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 3px solid var(--warning-color);
+        }
+
+        .recommendation-item.medium {
+            background: rgba(59, 130, 246, 0.1);
+            border-left: 3px solid var(--info-color);
+        }
+
+        .recommendation-item .title {
+            font-weight: 600;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .recommendation-item .description {
+            line-height: 1.4;
+            color: #374151;
+        }
+
+        .footer {
+            margin-top: 30px;
+            padding: 15px;
+            background: var(--light-color);
+            border-radius: 8px;
+            text-align: center;
+            font-size: 10px;
+            color: #6b7280;
+            break-inside: avoid;
+        }
+
+        .footer .features {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 8px 0;
+            flex-wrap: wrap;
+        }
+
+        .footer .feature {
+            font-size: 9px;
+        }
+
+        /* Page break controls for PDF */
+        .page-break {
+            page-break-before: always;
+        }
+
+        .no-break {
+            break-inside: avoid;
+        }
+
+        /* Hide interactive elements in PDF */
+        .interactive-only {
+            display: none;
+        }
+
+        @media print {
+            body { font-size: 10px; }
+            .section { margin-bottom: 20px; }
+            .summary-grid { grid-template-columns: repeat(5, 1fr); }
+            .metrics-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header no-break">
+            <h1>🚀 {{ app_name }}</h1>
+            <div class="subtitle">Advanced SRE Analytics Dashboard</div>
+            <div class="meta">
+                <div class="meta-item">
+                    <div class="meta-label">Report Generated</div>
+                    <div class="meta-value">{{ report_date }}</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Data Period</div>
+                    <div class="meta-value">Last 30 Days</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">System Status</div>
+                    <div class="meta-value">{{ summary.health_status }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Executive Summary -->
+        <div class="section no-break">
+            <h2 class="section-title">
+                <span class="icon">📊</span>
+                Executive Summary
+            </h2>
+
+            <div class="summary-grid">
+                <div class="summary-card {% if summary.compliance_percentage >= 99 %}success{% elif summary.compliance_percentage >= 95 %}warning{% else %}danger{% endif %}">
+                    <div class="label">SLO Compliance</div>
+                    <div class="value">{{ "%.1f"|format(summary.compliance_percentage) }}%</div>
+                    <div class="description">{{ summary.compliant_count }}/{{ summary.total_metrics }} compliant</div>
+                </div>
+
+                <div class="summary-card info">
+                    <div class="label">Services</div>
+                    <div class="value">{{ summary.total_services }}</div>
+                    <div class="description">Total monitored</div>
+                </div>
+
+                <div class="summary-card warning">
+                    <div class="label">At Risk</div>
+                    <div class="value">{{ summary.at_risk_count }}</div>
+                    <div class="description">Need attention</div>
+                </div>
+
+                <div class="summary-card danger">
+                    <div class="label">Breached</div>
+                    <div class="value">{{ summary.breached_count }}</div>
+                    <div class="description">Critical issues</div>
+                </div>
+
+                <div class="summary-card {% if summary.health_status == 'Healthy' %}success{% else %}warning{% endif %}">
+                    <div class="label">Health Status</div>
+                    <div class="value">{{ summary.health_status }}</div>
+                    <div class="description">Overall system</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Trends -->
+        {% if trend_charts %}
+        <div class="section">
+            <h2 class="section-title">
+                <span class="icon">📈</span>
+                Performance Trends & Analysis
+            </h2>
+
+            {% for chart_name, chart_data in trend_charts.items() %}
+            <div class="chart-container no-break">
+                <div class="chart-title">{{ chart_name.replace('_', ' ').title() }} Performance Trends</div>
+                <img src="{{ chart_data }}" alt="{{ chart_name }} Trend Chart">
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Detailed Metrics -->
+        <div class="section">
+            <h2 class="section-title">
+                <span class="icon">⚡</span>
+                Detailed Metrics Analysis
+            </h2>
+
+            <div class="metrics-grid">
+                {% for metric in metrics %}
+                <div class="metric-card no-break">
+                    <div class="header">
+                        <div class="status-dot {% if metric.status == 'compliant' %}success{% elif metric.status == 'at_risk' %}warning{% else %}danger{% endif %}"></div>
+                        <div class="service-name">{{ metric.service_name }}</div>
+                    </div>
+
+                    <div class="metric-name">{{ metric.metric_name.replace('_', ' ').title() }}</div>
+                    <div class="metric-value">{{ "%.2f"|format(metric.current_value) }}{{ metric.unit }}</div>
+                    <div class="metric-target">Target: {{ "%.2f"|format(metric.slo_target) }}{{ metric.unit }}</div>
+
+                    <div class="status-box {% if metric.status == 'compliant' %}success{% elif metric.status == 'at_risk' %}warning{% else %}danger{% endif %}">
+                        <div class="status-row">
+                            <span class="status-text {% if metric.status == 'compliant' %}success{% elif metric.status == 'at_risk' %}warning{% else %}danger{% endif %}">
+                                {{ metric.status.title() }}
+                            </span>
+                            <span class="error-budget">
+                                Error Budget: {{ "%.1f"|format(metric.error_budget_consumed) }}%
+                            </span>
+                        </div>
+                        {% if metric.description %}
+                        <div style="margin-top: 5px; font-size: 9px; line-height: 1.3;">{{ metric.description }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- AI-Powered Insights -->
+        {% if llm_analysis %}
+        <div class="section page-break">
+            <div class="ai-insight no-break">
+                <div class="header">
+                    <span class="icon">🤖</span>
+                    <span class="title">AI-Powered Performance Analysis</span>
+                    <span class="badge">AI Generated</span>
+                </div>
+                <div class="content">{{ llm_analysis }}</div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Incident Analysis -->
+        {% if has_incident and incident %}
+        <div class="section page-break">
+            <div class="incident-section no-break">
+                <h2 class="section-title">
+                    <span class="icon">🚨</span>
+                    Incident Analysis Report
+                </h2>
+
+                <div class="incident-grid">
+                    <div class="incident-card">
+                        <div class="value">{{ incident.incident_id }}</div>
+                        <div class="label">Incident ID</div>
+                    </div>
+                    <div class="incident-card">
+                        <div class="value">{{ incident.severity }}</div>
+                        <div class="label">Severity</div>
+                    </div>
+                    <div class="incident-card">
+                        <div class="value">{{ incident.start_time.strftime('%H:%M') }} - {{ incident.end_time.strftime('%H:%M') if incident.end_time else 'Ongoing' }}</div>
+                        <div class="label">Duration</div>
+                    </div>
+                    <div class="incident-card">
+                        <div class="value">{{ incident.affected_services|length }}</div>
+                        <div class="label">Services Affected</div>
+                    </div>
+                </div>
+
+                <div class="incident-details">
+                    <h4>Description</h4>
+                    <p>{{ incident.description }}</p>
+                </div>
+
+                <div class="incident-details">
+                    <h4>Affected Services</h4>
+                    <div class="service-tags">
+                        {% for service in incident.affected_services %}
+                        <span class="service-tag">{{ service }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="incident-details">
+                    <h4>Root Cause Analysis</h4>
+                    <p>{{ incident.root_cause }}</p>
+                </div>
+
+                {% if incident.llm_analysis %}
+                <div class="ai-insight">
+                    <div class="header">
+                        <span class="icon">🤖</span>
+                        <span class="title">AI-Powered Deep Analysis</span>
+                    </div>
+                    <div class="content">{{ incident.llm_analysis }}</div>
+                </div>
+                {% endif %}
+
+                <div class="incident-details">
+                    <h4>Resolution Steps</h4>
+                    <ol style="padding-left: 15px;">
+                        {% for step in incident.resolution_steps %}
+                        <li style="margin: 5px 0; font-size: 11px;">{{ step }}</li>
+                        {% endfor %}
+                    </ol>
+                </div>
+
+                {% if incident.lessons_learned %}
+                <div class="incident-details">
+                    <h4>Lessons Learned</h4>
+                    <div style="background: rgba(16, 185, 129, 0.1); padding: 10px; border-radius: 6px; border-left: 3px solid var(--success-color);">
+                        {{ incident.lessons_learned }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Key Recommendations -->
+        <div class="section">
+            <h2 class="section-title">
+                <span class="icon">💡</span>
+                Key Recommendations
+            </h2>
+
+            <div class="recommendations">
+                {% if summary.breached_count > 0 %}
+                <div class="recommendation-item critical">
+                    <div class="title">🚨 Critical: Address SLO Breaches</div>
+                    <div class="description">{{ summary.breached_count }} metric(s) have breached SLO targets and require immediate attention.</div>
+                </div>
+                {% endif %}
+
+                {% if summary.at_risk_count > 0 %}
+                <div class="recommendation-item high">
+                    <div class="title">⚡ High: Monitor At-Risk Services</div>
+                    <div class="description">{{ summary.at_risk_count }} metric(s) are at risk of breaching SLO targets.</div>
+                </div>
+                {% endif %}
+
+                <div class="recommendation-item medium">
+                    <div class="title">📈 Medium: Performance Optimization</div>
+                    <div class="description">Review error budget consumption and implement proactive alerting for trend-based predictions.</div>
+                </div>
+
+                <div class="recommendation-item medium">
+                    <div class="title">🔧 Low: Process Improvements</div>
+                    <div class="description">Update incident response procedures and schedule regular SLO review meetings with stakeholders.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer no-break">
+            <div><strong>Enhanced SRE Analytics Platform</strong></div>
+            <div>Generated on {{ report_date }} at {{ report_time }}</div>
+            <div class="features">
+                <span class="feature">✅ AI-Powered Analysis</span>
+                <span class="feature">✅ Real-time SLO Monitoring</span>
+                <span class="feature">✅ Trend Visualizations</span>
+                <span class="feature">✅ Incident RCA</span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
