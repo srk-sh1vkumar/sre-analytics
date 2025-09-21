@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+
+{% block title %}SRE Analytics Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="text-center mb-5">
+            <h1 class="display-4 text-primary mb-3">
+                <i class="fas fa-chart-line me-3"></i>
+                SRE Analytics Dashboard
+            </h1>
+            <p class="lead text-muted">
+                Generate comprehensive performance and incident analysis reports for your applications
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mb-5">
+    <div class="col-md-6 mb-4">
+        <div class="card h-100 report-card">
+            <div class="card-body text-center">
+                <div class="icon-lg text-primary">
+                    <i class="fas fa-tachometer-alt"></i>
+                </div>
+                <h3 class="card-title">Performance Analysis</h3>
+                <p class="card-text text-muted mb-4">
+                    Generate comprehensive SLO/SLA compliance reports with trend analysis and performance insights.
+                </p>
+                <ul class="list-unstyled text-start mb-4">
+                    <li><i class="fas fa-check text-success me-2"></i>SLO/SLA Monitoring</li>
+                    <li><i class="fas fa-check text-success me-2"></i>30-Day Trend Analysis</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Error Budget Tracking</li>
+                    <li><i class="fas fa-check text-success me-2"></i>AI-Powered Insights</li>
+                </ul>
+                <a href="/performance" class="btn btn-primary btn-lg">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    Generate Performance Report
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card h-100 report-card">
+            <div class="card-body text-center">
+                <div class="icon-lg text-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <h3 class="card-title">Incident Analysis</h3>
+                <p class="card-text text-muted mb-4">
+                    Analyze incidents with AI-powered root cause analysis and automated recommendations.
+                </p>
+                <ul class="list-unstyled text-start mb-4">
+                    <li><i class="fas fa-check text-success me-2"></i>Root Cause Analysis</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Performance Snapshots</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Timeline Analysis</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Smart Recommendations</li>
+                </ul>
+                <a href="/incident" class="btn btn-warning btn-lg">
+                    <i class="fas fa-search me-2"></i>
+                    Generate Incident Report
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Status -->
+<div class="row mb-5">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="fas fa-heartbeat me-2"></i>
+                    System Status
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <div class="text-center">
+                            <div class="fs-2 mb-2">
+                                <i class="fas fa-server text-success"></i>
+                            </div>
+                            <h6>Report Engine</h6>
+                            <span class="badge bg-success">Online</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="text-center">
+                            <div class="fs-2 mb-2">
+                                <i class="fas fa-database text-info" id="appdynamics-status"></i>
+                            </div>
+                            <h6>AppDynamics</h6>
+                            <span class="badge bg-secondary" id="appdynamics-badge">Checking...</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="text-center">
+                            <div class="fs-2 mb-2">
+                                <i class="fas fa-brain text-primary"></i>
+                            </div>
+                            <h6>AI Analysis</h6>
+                            <span class="badge bg-success">Available</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="text-center">
+                            <div class="fs-2 mb-2">
+                                <i class="fas fa-file-pdf text-danger"></i>
+                            </div>
+                            <h6>PDF Export</h6>
+                            <span class="badge bg-success">WeasyPrint</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Reports -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="fas fa-history me-2"></i>
+                    Recent Reports
+                </h4>
+                <button class="btn btn-outline-primary btn-sm" onclick="loadRecentReports()">
+                    <i class="fas fa-sync-alt me-1"></i>
+                    Refresh
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="recent-reports-container">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading recent reports...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    loadRecentReports();
+    checkSystemStatus();
+});
+
+function loadRecentReports() {
+    $.get('/api/recent-reports')
+        .done(function(data) {
+            const container = $('#recent-reports-container');
+
+            if (data.reports && data.reports.length > 0) {
+                let html = '<div class="row">';
+
+                data.reports.forEach(function(report, index) {
+                    if (index < 6) { // Show max 6 reports
+                        html += `
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card border-left-primary">
+                                    <div class="card-body">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <i class="fas fa-file-alt text-primary me-2"></i>
+                                            <h6 class="card-title mb-0 text-truncate">${report.name}</h6>
+                                        </div>
+                                        <div class="row text-muted small">
+                                            <div class="col-6">
+                                                <i class="fas fa-clock me-1"></i>
+                                                ${formatDate(report.created)}
+                                            </div>
+                                            <div class="col-6 text-end">
+                                                <i class="fas fa-file me-1"></i>
+                                                ${report.size}
+                                            </div>
+                                        </div>
+                                        <div class="mt-2">
+                                            <a href="${report.path}" class="btn btn-outline-primary btn-sm" target="_blank">
+                                                <i class="fas fa-external-link-alt me-1"></i>
+                                                View Report
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+
+                html += '</div>';
+                container.html(html);
+            } else {
+                container.html(`
+                    <div class="text-center text-muted">
+                        <i class="fas fa-folder-open fa-3x mb-3"></i>
+                        <p>No reports generated yet. Create your first report using the options above.</p>
+                    </div>
+                `);
+            }
+        })
+        .fail(function() {
+            $('#recent-reports-container').html(`
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Unable to load recent reports. Please try again.
+                </div>
+            `);
+        });
+}
+
+function checkSystemStatus() {
+    // Simulate AppDynamics connection check
+    setTimeout(function() {
+        const isConnected = Math.random() > 0.7; // 30% chance of connection failure for demo
+
+        const statusIcon = $('#appdynamics-status');
+        const statusBadge = $('#appdynamics-badge');
+
+        if (isConnected) {
+            statusIcon.removeClass('text-info').addClass('text-success');
+            statusBadge.removeClass('bg-secondary').addClass('bg-success').text('Connected');
+        } else {
+            statusIcon.removeClass('text-info').addClass('text-warning');
+            statusBadge.removeClass('bg-secondary').addClass('bg-warning').text('Demo Mode');
+        }
+    }, 2000);
+}
+</script>
+{% endblock %}

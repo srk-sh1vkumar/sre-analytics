@@ -1,0 +1,52 @@
+# SRE Analytics Docker Image
+FROM python:3.9-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies for WeasyPrint
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    libffi-dev \
+    libxml2-dev \
+    libxslt-dev \
+    libcairo2-dev \
+    libgdk-pixbuf2.0-dev \
+    shared-mime-info \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY src/ ./src/
+COPY config/ ./config/
+COPY *.py ./
+
+# Create necessary directories
+RUN mkdir -p reports/generated logs
+
+# Set environment variables
+ENV PYTHONPATH=/app/src
+ENV REPORT_OUTPUT_PATH=/app/reports/generated
+
+# Expose port for potential web interface
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import sys; sys.path.append('src'); from reports.enhanced_sre_report_system import EnhancedSREReportSystem; print('OK')" || exit 1
+
+# Default command
+CMD ["python", "generate_sre_report.py"]
+
+# Labels for metadata
+LABEL maintainer="SRE Team"
+LABEL description="SRE Analytics and Reporting System"
+LABEL version="1.0"

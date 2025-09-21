@@ -1,0 +1,141 @@
+# E-Commerce Microservices SLO Definitions
+# Service Level Objectives for reliability, performance, and availability
+
+service_level_objectives:
+
+  # API Gateway SLOs
+  api_gateway:
+    service_name: "api-gateway"
+    port: 8081
+    availability_slo: 99.9%        # 99.9% uptime (8.76 hours downtime/year)
+    latency_p95_slo: 200ms         # 95th percentile response time
+    latency_p99_slo: 500ms         # 99th percentile response time
+    error_rate_slo: 0.1%           # Error rate threshold
+    throughput_min: 500            # Minimum requests per second
+
+  # User Service SLOs
+  user_service:
+    service_name: "user-service"
+    port: 8082
+    availability_slo: 99.95%       # Higher availability for auth
+    latency_p95_slo: 150ms         # Authentication should be fast
+    latency_p99_slo: 300ms
+    error_rate_slo: 0.05%          # Lower error tolerance for auth
+    throughput_min: 200
+
+  # Product Service SLOs
+  product_service:
+    service_name: "product-service"
+    port: 8083
+    availability_slo: 99.9%
+    latency_p95_slo: 200ms         # Product browsing performance
+    latency_p99_slo: 500ms
+    error_rate_slo: 0.1%
+    throughput_min: 300
+
+  # Cart Service SLOs
+  cart_service:
+    service_name: "cart-service"
+    port: 8084
+    availability_slo: 99.9%
+    latency_p95_slo: 150ms         # Cart operations should be quick
+    latency_p99_slo: 400ms
+    error_rate_slo: 0.1%
+    throughput_min: 150
+
+  # Order Service SLOs
+  order_service:
+    service_name: "order-service"
+    port: 8085
+    availability_slo: 99.95%       # Critical for checkout
+    latency_p95_slo: 300ms         # Order processing can be slightly slower
+    latency_p99_slo: 1000ms
+    error_rate_slo: 0.05%          # Very low error tolerance
+    throughput_min: 100
+
+# Business-Critical SLOs (End-to-End)
+business_level_objectives:
+
+  # Complete Checkout Flow
+  checkout_flow:
+    description: "End-to-end checkout process"
+    success_rate_slo: 99.5%        # Business critical
+    end_to_end_latency_p95: 2000ms # Complete flow under 2 seconds
+    end_to_end_latency_p99: 5000ms
+    conversion_rate_min: 85%       # Business KPI
+
+  # Product Search & Browse
+  product_discovery:
+    description: "Product search and browsing experience"
+    success_rate_slo: 99.8%
+    search_latency_p95: 300ms
+    page_load_time_p95: 1000ms
+
+  # User Authentication Flow
+  authentication_flow:
+    description: "Login and registration process"
+    success_rate_slo: 99.9%
+    login_latency_p95: 500ms
+    registration_latency_p95: 1000ms
+
+# Infrastructure SLOs
+infrastructure_objectives:
+
+  # Database Performance
+  mongodb:
+    service_name: "mongodb"
+    availability_slo: 99.9%
+    query_latency_p95: 50ms
+    connection_utilization_max: 80%
+
+  # Service Discovery
+  eureka_server:
+    service_name: "eureka-server"
+    port: 8761
+    availability_slo: 99.95%       # Critical for service discovery
+    latency_p95_slo: 100ms
+
+  # Monitoring Stack
+  monitoring_stack:
+    grafana_availability: 99.5%
+    prometheus_availability: 99.8%
+    data_retention_days: 30
+
+# Error Budget Configuration
+error_budgets:
+  # Monthly error budgets based on SLOs
+  monthly_budgets:
+    api_gateway: 43.2          # minutes (99.9% availability)
+    user_service: 21.6         # minutes (99.95% availability)
+    product_service: 43.2      # minutes (99.9% availability)
+    cart_service: 43.2         # minutes (99.9% availability)
+    order_service: 21.6        # minutes (99.95% availability)
+
+  # Burn rate alerts
+  burn_rate_alerts:
+    fast_burn: 14.4            # Alert if burning budget 14.4x faster than expected
+    slow_burn: 3               # Alert if burning budget 3x faster than expected
+
+# Alerting Configuration
+alerting_rules:
+  severity_levels:
+    critical:
+      - availability_breach: "Service availability below SLO"
+      - error_budget_exhausted: "Monthly error budget >90% consumed"
+      - business_flow_failure: "Business-critical flow failing"
+
+    warning:
+      - latency_degradation: "Latency approaching SLO threshold"
+      - error_rate_elevated: "Error rate elevated above baseline"
+      - error_budget_warning: "Error budget >50% consumed"
+
+    info:
+      - slo_status_report: "Daily SLO compliance report"
+      - performance_trend: "Weekly performance trend analysis"
+
+# Measurement Windows
+measurement_windows:
+  real_time: "5m"              # 5-minute windows for real-time alerts
+  short_term: "1h"             # 1-hour windows for trending
+  compliance_reporting: "24h"   # Daily compliance measurement
+  sla_reporting: "30d"         # Monthly SLA reports

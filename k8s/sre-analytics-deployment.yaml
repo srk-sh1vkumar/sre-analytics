@@ -1,0 +1,219 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sre-analytics
+  namespace: monitoring
+  labels:
+    app: sre-analytics
+    component: reporting
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sre-analytics
+  template:
+    metadata:
+      labels:
+        app: sre-analytics
+        component: reporting
+    spec:
+      containers:
+      - name: sre-analytics
+        image: sre-analytics:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: APPDYNAMICS_CONTROLLER_HOST
+          valueFrom:
+            secretKeyRef:
+              name: appdynamics-secret
+              key: controller-host
+        - name: APPDYNAMICS_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: appdynamics-secret
+              key: client-id
+        - name: APPDYNAMICS_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: appdynamics-secret
+              key: client-secret
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: llm-secrets
+              key: openai-key
+              optional: true
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: llm-secrets
+              key: anthropic-key
+              optional: true
+        volumeMounts:
+        - name: reports-storage
+          mountPath: /app/reports
+        - name: config-volume
+          mountPath: /app/config
+        - name: logs-storage
+          mountPath: /app/logs
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      volumes:
+      - name: reports-storage
+        persistentVolumeClaim:
+          claimName: sre-reports-pvc
+      - name: config-volume
+        configMap:
+          name: sre-analytics-config
+      - name: logs-storage
+        emptyDir: {}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      nodeSelector:
+        node-role.kubernetes.io/worker: "true"
+      tolerations:
+      - key: "monitoring"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sre-analytics-service
+  namespace: monitoring
+  labels:
+    app: sre-analytics
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: sre-analytics
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sre-reports-pvc
+  namespace: monitoring
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: fast-ssd
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sre-analytics-config
+  namespace: monitoring
+data:
+  slo_definitions.yaml: |
+    service_level_objectives:
+      web_service:
+        service_name: "web-service"
+        availability_slo: "99.9%"
+        latency_p95_slo: "200ms"
+        error_rate_slo: "0.1%"
+      api_service:
+        service_name: "api-service"
+        availability_slo: "99.95%"
+        latency_p95_slo: "150ms"
+        error_rate_slo: "0.05%"
+
+  sla_thresholds.yaml: |
+    service_level_agreements:
+      production:
+        external_availability: "99.9%"
+        api_response_time_sla: "500ms"
+        mean_time_to_recovery: 30
+        mean_time_to_detection: 5
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: sre-report-generator
+  namespace: monitoring
+spec:
+  schedule: "0 6 * * *"  # Daily at 6 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: report-generator
+            image: sre-analytics:latest
+            command: ["python", "generate_sre_report.py", "--automated"]
+            env:
+            - name: APPDYNAMICS_CONTROLLER_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: appdynamics-secret
+                  key: controller-host
+            volumeMounts:
+            - name: reports-storage
+              mountPath: /app/reports
+          volumes:
+          - name: reports-storage
+            persistentVolumeClaim:
+              claimName: sre-reports-pvc
+          restartPolicy: OnFailure
+      backoffLimit: 3
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sre-analytics-ingress
+  namespace: monitoring
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  tls:
+  - hosts:
+    - sre-analytics.company.com
+    secretName: sre-analytics-tls
+  rules:
+  - host: sre-analytics.company.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: sre-analytics-service
+            port:
+              number: 80

@@ -1,0 +1,535 @@
+{% extends "base.html" %}
+
+{% block title %}Performance Analysis Report{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h2 text-primary mb-2">
+                    <i class="fas fa-tachometer-alt me-3"></i>
+                    Performance Analysis Report
+                </h1>
+                <p class="text-muted">Generate comprehensive SLO/SLA compliance and trend analysis reports</p>
+            </div>
+            <a href="/" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>
+                Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Alert Container -->
+<div id="alert-container" class="mb-4"></div>
+
+<!-- Report Configuration Form -->
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="fas fa-cog me-2"></i>
+                    Report Configuration
+                </h4>
+            </div>
+            <div class="card-body">
+                <form id="performance-report-form">
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label for="app_name" class="form-label">
+                                <i class="fas fa-cube me-2"></i>
+                                Application Name *
+                            </label>
+                            <select class="form-select" id="app_name" name="app_name" required>
+                                <option value="">Loading applications...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="analysis_scope" class="form-label">
+                                <i class="fas fa-crosshairs me-2"></i>
+                                Analysis Scope
+                            </label>
+                            <select class="form-select" id="analysis_scope" name="analysis_scope">
+                                <option value="application">Full Application</option>
+                                <option value="service">Service-Level Analysis</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3" id="custom_app_name" style="display: none;">
+                        <label for="custom_app_name_input" class="form-label">
+                            <i class="fas fa-edit me-2"></i>
+                            Custom Application Name
+                        </label>
+                        <input type="text" class="form-control" id="custom_app_name_input" name="custom_app_name_input"
+                               placeholder="Enter your custom application name">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="services" class="form-label">
+                            <i class="fas fa-server me-2"></i>
+                            <span id="services_label">Services to Monitor *</span>
+                        </label>
+                        <textarea class="form-control" id="services" name="services" rows="3"
+                                  placeholder="web-frontend, api-gateway, user-service, order-service, payment-service" required></textarea>
+                        <div class="form-text" id="services_help">Enter service names separated by commas</div>
+                    </div>
+
+                    <div class="mb-3" id="service_selection" style="display: none;">
+                        <label class="form-label">
+                            <i class="fas fa-list-check me-2"></i>
+                            Select Service for Analysis *
+                        </label>
+                        <select class="form-select" id="target_service" name="target_service">
+                            <option value="">Select a service...</option>
+                        </select>
+                        <div class="form-text">Choose the specific service you want to analyze in detail</div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label">
+                                <i class="fas fa-chart-line me-2"></i>
+                                Analysis Period
+                            </label>
+                            <select class="form-select" id="analysis_period">
+                                <option value="30">Last 30 Days (Standard)</option>
+                                <option value="7">Last 7 Days</option>
+                                <option value="1">Last 24 Hours</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">
+                                <i class="fas fa-file-export me-2"></i>
+                                Report Format
+                            </label>
+                            <select class="form-select" id="report_format">
+                                <option value="all">All Formats (HTML, PDF, JSON)</option>
+                                <option value="html">HTML Only</option>
+                                <option value="pdf">PDF Only</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="include_ai_analysis" checked>
+                            <label class="form-check-label" for="include_ai_analysis">
+                                <i class="fas fa-brain me-2"></i>
+                                Include AI-powered insights and recommendations
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="include_trends" checked>
+                            <label class="form-check-label" for="include_trends">
+                                <i class="fas fa-chart-area me-2"></i>
+                                Include trend analysis and predictions
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg" id="generate-btn">
+                        <i class="fas fa-play me-2"></i>
+                        Generate Performance Report
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Report Preview -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-eye me-2"></i>
+                    Report Preview
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="text-muted small">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span><i class="fas fa-chart-bar me-1"></i> SLO/SLA Metrics</span>
+                        <i class="fas fa-check text-success"></i>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span><i class="fas fa-chart-line me-1"></i> Trend Analysis</span>
+                        <i class="fas fa-check text-success"></i>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span><i class="fas fa-tachometer-alt me-1"></i> Performance Metrics</span>
+                        <i class="fas fa-check text-success"></i>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span><i class="fas fa-brain me-1"></i> AI Insights</span>
+                        <i class="fas fa-check text-success"></i>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span><i class="fas fa-exclamation-circle me-1"></i> Error Budget</span>
+                        <i class="fas fa-check text-success"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Examples -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    Quick Examples
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <button class="btn btn-outline-info btn-sm w-100" onclick="fillExample('ecommerce')">
+                        <i class="fas fa-shopping-cart me-2"></i>
+                        E-commerce Platform
+                    </button>
+                </div>
+                <div class="mb-3">
+                    <button class="btn btn-outline-info btn-sm w-100" onclick="fillExample('fintech')">
+                        <i class="fas fa-university me-2"></i>
+                        Banking/Fintech
+                    </button>
+                </div>
+                <div class="mb-3">
+                    <button class="btn btn-outline-info btn-sm w-100" onclick="fillExample('saas')">
+                        <i class="fas fa-cloud me-2"></i>
+                        SaaS Platform
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Progress Section (Hidden by default) -->
+<div id="progress-section" class="row mt-4" style="display: none;">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-cogs me-2"></i>
+                    Report Generation Progress
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="progress mb-3" style="height: 20px;">
+                    <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated"
+                         role="progressbar" style="width: 0%"></div>
+                </div>
+                <p id="progress-message" class="mb-0 text-muted">Initializing...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Results Section (Hidden by default) -->
+<div id="results-section" class="row mt-4" style="display: none;">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-download me-2"></i>
+                    Generated Reports
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="download-buttons" class="d-grid gap-2 d-md-flex">
+                    <!-- Download buttons will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentTaskId = null;
+let progressInterval = null;
+
+$(document).ready(function() {
+    $('#performance-report-form').on('submit', function(e) {
+        e.preventDefault();
+        generateReport();
+    });
+
+    // Load AppDynamics applications
+    loadAppDynamicsApplications();
+
+    // Handle application dropdown changes
+    $('#app_name').on('change', function() {
+        const value = $(this).val();
+        if (value === 'custom') {
+            $('#custom_app_name').show();
+            $('#custom_app_name_input').prop('required', true);
+        } else {
+            $('#custom_app_name').hide();
+            $('#custom_app_name_input').prop('required', false);
+        }
+    });
+
+    // Handle analysis scope changes
+    $('#analysis_scope').on('change', function() {
+        const scope = $(this).val();
+        if (scope === 'service') {
+            $('#services_label').text('Available Services *');
+            $('#services_help').text('Enter all available services, then select one for detailed analysis');
+            $('#service_selection').show();
+            $('#target_service').prop('required', true);
+        } else {
+            $('#services_label').text('Services to Monitor *');
+            $('#services_help').text('Enter service names separated by commas');
+            $('#service_selection').hide();
+            $('#target_service').prop('required', false);
+        }
+    });
+
+    // Update service dropdown when services are entered
+    $('#services').on('input', function() {
+        const servicesText = $(this).val().trim();
+        const serviceDropdown = $('#target_service');
+
+        // Clear existing options except the first one
+        serviceDropdown.find('option:not(:first)').remove();
+
+        if (servicesText && $('#analysis_scope').val() === 'service') {
+            const services = servicesText.split(',').map(s => s.trim()).filter(s => s);
+            services.forEach(service => {
+                serviceDropdown.append(`<option value="${service}">${service}</option>`);
+            });
+        }
+    });
+});
+
+function fillExample(type) {
+    const examples = {
+        'ecommerce': {
+            app_name: 'E-commerce Platform',
+            services: 'web-frontend, api-gateway, user-service, product-service, cart-service, payment-service, order-service, inventory-service'
+        },
+        'fintech': {
+            app_name: 'Banking System',
+            services: 'web-portal, api-gateway, auth-service, account-service, transaction-service, payment-processor, risk-engine, notification-service'
+        },
+        'saas': {
+            app_name: 'SaaS Platform',
+            services: 'web-app, api-gateway, user-management, subscription-service, billing-service, analytics-service, notification-service'
+        }
+    };
+
+    const example = examples[type];
+    if (example) {
+        $('#app_name').val(example.app_name).trigger('change');
+        $('#services').val(example.services).trigger('input');
+    }
+}
+
+function generateReport() {
+    // Get application name
+    let appName = $('#app_name').val();
+    if (appName === 'custom') {
+        appName = $('#custom_app_name_input').val().trim();
+    }
+
+    const formData = {
+        report_type: 'performance',
+        app_name: appName,
+        services: $('#services').val().trim(),
+        analysis_scope: $('#analysis_scope').val(),
+        target_service: $('#target_service').val()
+    };
+
+    // Validate form
+    if (!formData.app_name || !formData.services) {
+        showAlert('danger', 'Please fill in all required fields.');
+        return;
+    }
+
+    // Validate service-level analysis
+    if (formData.analysis_scope === 'service' && !formData.target_service) {
+        showAlert('danger', 'Please select a specific service for service-level analysis.');
+        return;
+    }
+
+    const generateBtn = $('#generate-btn');
+    showLoading(generateBtn, 'Starting Generation...');
+
+    // Hide previous results
+    $('#results-section').hide();
+    $('#progress-section').show();
+
+    // Start report generation
+    $.ajax({
+        url: '/api/generate-report',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(formData),
+        success: function(response) {
+            currentTaskId = response.task_id;
+            showAlert('info', 'Report generation started. This may take 30-60 seconds...');
+
+            // Start progress monitoring
+            progressInterval = setInterval(checkProgress, 2000);
+        },
+        error: function(xhr, status, error) {
+            hideLoading(generateBtn);
+            $('#progress-section').hide();
+
+            let errorMessage = 'Failed to start report generation.';
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMessage = xhr.responseJSON.error;
+            }
+            showAlert('danger', errorMessage);
+        }
+    });
+}
+
+function checkProgress() {
+    if (!currentTaskId) return;
+
+    $.get(`/api/task-status/${currentTaskId}`)
+        .done(function(data) {
+            updateProgress(data.progress || 0, data.message || 'Processing...');
+
+            if (data.status === 'completed') {
+                clearInterval(progressInterval);
+                progressInterval = null;
+
+                showAlert('success', 'Report generated successfully!');
+                showDownloadButtons();
+                hideLoading($('#generate-btn'));
+                $('#progress-section').hide();
+                $('#results-section').show();
+
+            } else if (data.status === 'error') {
+                clearInterval(progressInterval);
+                progressInterval = null;
+
+                showAlert('danger', `Report generation failed: ${data.message}`);
+                hideLoading($('#generate-btn'));
+                $('#progress-section').hide();
+            }
+        })
+        .fail(function() {
+            clearInterval(progressInterval);
+            progressInterval = null;
+
+            showAlert('danger', 'Lost connection to report generation service.');
+            hideLoading($('#generate-btn'));
+            $('#progress-section').hide();
+        });
+}
+
+function updateProgress(progress, message) {
+    $('#progress-bar').css('width', progress + '%').attr('aria-valuenow', progress);
+    $('#progress-message').text(message);
+}
+
+function showDownloadButtons() {
+    const buttons = `
+        <button class="btn btn-primary me-2" onclick="downloadReport('html')">
+            <i class="fas fa-globe me-2"></i>
+            Download HTML Report
+        </button>
+        <button class="btn btn-success me-2" onclick="downloadReport('pdf')">
+            <i class="fas fa-file-pdf me-2"></i>
+            Download PDF Report
+        </button>
+        <button class="btn btn-info me-2" onclick="downloadReport('json')">
+            <i class="fas fa-code me-2"></i>
+            Download JSON Data
+        </button>
+        <button class="btn btn-outline-secondary" onclick="generateNewReport()">
+            <i class="fas fa-plus me-2"></i>
+            Generate New Report
+        </button>
+    `;
+    $('#download-buttons').html(buttons);
+}
+
+function downloadReport(format) {
+    if (!currentTaskId) return;
+
+    const downloadUrl = `/api/download-report/${currentTaskId}/${format}`;
+    window.open(downloadUrl, '_blank');
+}
+
+function generateNewReport() {
+    // Reset form and UI
+    currentTaskId = null;
+    $('#results-section').hide();
+    $('#progress-section').hide();
+    $('#alert-container').empty();
+    $('#performance-report-form')[0].reset();
+    $('#include_ai_analysis').prop('checked', true);
+    $('#include_trends').prop('checked', true);
+
+    // Scroll to top
+    $('html, body').animate({scrollTop: 0}, 'smooth');
+}
+
+function loadAppDynamicsApplications() {
+    const dropdown = $('#app_name');
+
+    $.get('/api/appdynamics-applications')
+        .done(function(data) {
+            dropdown.empty();
+
+            if (data.success && data.applications && data.applications.length > 0) {
+                dropdown.append('<option value="">Select an application...</option>');
+
+                // Add AppDynamics applications
+                data.applications.forEach(function(app) {
+                    dropdown.append(`<option value="${app.name}" title="${app.description}">${app.name}</option>`);
+                });
+
+                // Add separator and custom option
+                dropdown.append('<option disabled>────────────────</option>');
+                dropdown.append('<option value="custom">Custom Application...</option>');
+
+                console.log(`✅ Loaded ${data.applications.length} applications from AppDynamics`);
+
+                // Auto-select ecommerce-microservices if available
+                const ecommerceApp = data.applications.find(app =>
+                    app.name.toLowerCase().includes('ecommerce') ||
+                    app.name.toLowerCase().includes('e-commerce')
+                );
+
+                if (ecommerceApp) {
+                    dropdown.val(ecommerceApp.name);
+                    console.log(`🎯 Auto-selected: ${ecommerceApp.name}`);
+                }
+
+            } else {
+                // Fallback to predefined list if AppDynamics not available
+                console.log('⚠️ AppDynamics not available, using fallback applications');
+                dropdown.empty();
+                dropdown.append('<option value="">Select an application...</option>');
+                dropdown.append('<option value="E-commerce Platform">E-commerce Platform</option>');
+                dropdown.append('<option value="Banking System">Banking System</option>');
+                dropdown.append('<option value="Trading Platform">Trading Platform</option>');
+                dropdown.append('<option value="SaaS Platform">SaaS Platform</option>');
+                dropdown.append('<option value="Healthcare System">Healthcare System</option>');
+                dropdown.append('<option value="Insurance Platform">Insurance Platform</option>');
+                dropdown.append('<option value="custom">Custom Application...</option>');
+            }
+        })
+        .fail(function(xhr, status, error) {
+            console.error('❌ Failed to load AppDynamics applications:', error);
+
+            // Fallback to predefined list
+            dropdown.empty();
+            dropdown.append('<option value="">Select an application...</option>');
+            dropdown.append('<option value="E-commerce Platform">E-commerce Platform</option>');
+            dropdown.append('<option value="Banking System">Banking System</option>');
+            dropdown.append('<option value="Trading Platform">Trading Platform</option>');
+            dropdown.append('<option value="custom">Custom Application...</option>');
+        });
+}
+</script>
+{% endblock %}

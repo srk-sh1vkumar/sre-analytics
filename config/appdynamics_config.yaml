@@ -1,0 +1,124 @@
+# AppDynamics Integration Configuration
+
+# AppDynamics Controller Configuration
+controller:
+  host: "${APPDYNAMICS_CONTROLLER_HOST_NAME}"
+  account: "${APPDYNAMICS_AGENT_ACCOUNT_NAME}"
+  access_key: "${APPDYNAMICS_AGENT_ACCOUNT_ACCESS_KEY}"
+  ssl: true
+  port: 443
+
+# Application Configuration
+applications:
+  primary_app: "E-Commerce-Microservices"
+
+  # Service mapping to AppDynamics tiers
+  service_mapping:
+    api_gateway:
+      tier_name: "API-Gateway"
+      business_transactions:
+        - "GET /api/*"
+        - "POST /api/*"
+
+    user_service:
+      tier_name: "User-Service"
+      business_transactions:
+        - "POST /api/users/login"
+        - "POST /api/users/register"
+        - "GET /api/users/{email}"
+
+    product_service:
+      tier_name: "Product-Service"
+      business_transactions:
+        - "GET /api/products"
+        - "GET /api/products/{id}"
+        - "GET /api/products/search"
+
+    cart_service:
+      tier_name: "Cart-Service"
+      business_transactions:
+        - "POST /api/cart/add"
+        - "GET /api/cart/{userEmail}"
+        - "PUT /api/cart/*"
+
+    order_service:
+      tier_name: "Order-Service"
+      business_transactions:
+        - "POST /api/orders/checkout"
+        - "GET /api/orders/history/*"
+
+# Metrics Collection Configuration
+metrics:
+  collection_interval: 60  # seconds
+  retention_days: 90
+
+  # Key Performance Indicators
+  kpis:
+    - name: "response_time_p95"
+      metric_path: "Business Transaction Performance|*|95th Percentile Response Time (ms)"
+
+    - name: "response_time_p99"
+      metric_path: "Business Transaction Performance|*|99th Percentile Response Time (ms)"
+
+    - name: "calls_per_minute"
+      metric_path: "Business Transaction Performance|*|Calls per Minute"
+
+    - name: "error_percentage"
+      metric_path: "Business Transaction Performance|*|Errors per Minute"
+
+    - name: "throughput"
+      metric_path: "Overall Application Performance|*|Calls per Minute"
+
+    - name: "availability"
+      metric_path: "Application Infrastructure Performance|*|Availability"
+
+# Business Flow Configuration
+business_flows:
+  checkout_flow:
+    name: "Complete Checkout Process"
+    steps:
+      - tier: "API-Gateway"
+        transaction: "POST /api/orders/checkout"
+      - tier: "User-Service"
+        transaction: "Validate User Session"
+      - tier: "Cart-Service"
+        transaction: "Get Cart Items"
+      - tier: "Product-Service"
+        transaction: "Validate Stock"
+      - tier: "Order-Service"
+        transaction: "Create Order"
+
+  user_registration:
+    name: "User Registration Flow"
+    steps:
+      - tier: "API-Gateway"
+        transaction: "POST /api/users/register"
+      - tier: "User-Service"
+        transaction: "Create User Account"
+
+# API Configuration
+api:
+  base_url: "https://{{controller_host}}/controller/rest"
+  timeout: 30  # seconds
+  retry_attempts: 3
+  retry_delay: 5  # seconds
+
+# Data Export Configuration
+export:
+  formats:
+    - json
+    - csv
+    - excel
+
+  schedule:
+    daily_reports: "00:00"     # Midnight UTC
+    weekly_reports: "SUN 00:00"
+    monthly_reports: "1 00:00"  # First day of month
+
+  destinations:
+    - type: "local_file"
+      path: "./reports/generated/"
+    - type: "s3_bucket"
+      bucket: "${S3_REPORTS_BUCKET}"
+    - type: "email"
+      recipients: ["sre-team@company.com"]

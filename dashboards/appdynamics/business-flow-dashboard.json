@@ -1,0 +1,116 @@
+{
+  "dashboardDefinition": {
+    "name": "E-Commerce Business Flow Monitoring",
+    "description": "Monitor critical business flows and SLAs",
+    "layoutType": "GRID_LAYOUT",
+    "height": 1200,
+    "widgets": [
+      {
+        "type": "METRIC_LABEL_WIDGET",
+        "title": "Checkout Success Rate",
+        "width": 300,
+        "height": 150,
+        "x": 0,
+        "y": 0,
+        "properties": {
+          "metricPath": "Business Transaction Performance|*|Checkout Flow|Normal|Calls per Minute",
+          "showValues": true,
+          "useMetricBrowserHierarchy": true
+        }
+      },
+      {
+        "type": "METRIC_LINE_GRAPH",
+        "title": "Response Time Trends",
+        "width": 600,
+        "height": 300,
+        "x": 300,
+        "y": 0,
+        "properties": {
+          "metrics": [
+            {
+              "metricPath": "Business Transaction Performance|*|Average Response Time (ms)",
+              "metricDisplayName": "Average Response Time"
+            },
+            {
+              "metricPath": "Business Transaction Performance|*|95th Percentile Response Time (ms)",
+              "metricDisplayName": "95th Percentile"
+            }
+          ],
+          "timeRangeSpecifier": {
+            "type": "BEFORE_NOW",
+            "durationInMinutes": 60
+          }
+        }
+      },
+      {
+        "type": "HEALTH_LIST_WIDGET",
+        "title": "Service Health Status",
+        "width": 300,
+        "height": 200,
+        "x": 0,
+        "y": 150,
+        "properties": {
+          "entityType": "APPLICATION_COMPONENT_NODE",
+          "displayFormat": "LIST",
+          "showOnlyEntitiesWithProblems": false
+        }
+      },
+      {
+        "type": "METRIC_PIE_CHART",
+        "title": "Error Distribution",
+        "width": 300,
+        "height": 200,
+        "x": 600,
+        "y": 300,
+        "properties": {
+          "metricPath": "Errors|*|Errors per Minute",
+          "maxSlices": 10,
+          "aggregationType": "AVERAGE"
+        }
+      },
+      {
+        "type": "SLA_WIDGET",
+        "title": "SLA Compliance",
+        "width": 900,
+        "height": 150,
+        "x": 0,
+        "y": 350,
+        "properties": {
+          "slaName": "E-Commerce SLA",
+          "showViolations": true,
+          "timeRangeSpecifier": {
+            "type": "BEFORE_NOW",
+            "durationInMinutes": 1440
+          }
+        }
+      },
+      {
+        "type": "BUSINESS_JOURNEY_WIDGET",
+        "title": "Customer Journey Flow",
+        "width": 900,
+        "height": 300,
+        "x": 0,
+        "y": 500,
+        "properties": {
+          "businessJourneyName": "E-Commerce Customer Journey",
+          "showConversionRates": true,
+          "showBottlenecks": true
+        }
+      }
+    ],
+    "templateVariables": [
+      {
+        "name": "Application",
+        "entityType": "APPLICATION",
+        "entitySubType": "ALL"
+      },
+      {
+        "name": "Tier",
+        "entityType": "APPLICATION_COMPONENT",
+        "entitySubType": "ALL"
+      }
+    ],
+    "refreshInterval": 60,
+    "autoRefresh": true
+  }
+}

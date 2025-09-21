@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  sre-analytics:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.analytics
+    container_name: sre-analytics
+    environment:
+      - APPDYNAMICS_CONTROLLER_HOST=${APPDYNAMICS_CONTROLLER_HOST}
+      - APPDYNAMICS_CLIENT_ID=${APPDYNAMICS_CLIENT_ID}
+      - APPDYNAMICS_CLIENT_SECRET=${APPDYNAMICS_CLIENT_SECRET}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    volumes:
+      - ../reports:/app/reports
+      - ../logs:/app/logs
+      - ../config:/app/config
+    networks:
+      - sre-network
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  report-scheduler:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.analytics
+    container_name: sre-report-scheduler
+    environment:
+      - APPDYNAMICS_CONTROLLER_HOST=${APPDYNAMICS_CONTROLLER_HOST}
+      - APPDYNAMICS_CLIENT_ID=${APPDYNAMICS_CLIENT_ID}
+      - APPDYNAMICS_CLIENT_SECRET=${APPDYNAMICS_CLIENT_SECRET}
+    volumes:
+      - ../reports:/app/reports
+      - ../logs:/app/logs
+      - ../config:/app/config
+      - ./cron/crontab:/etc/crontab:ro
+    command: >
+      sh -c "
+        echo '0 6 * * * cd /app && python generate_sre_report.py --automated >> /app/logs/scheduled_reports.log 2>&1' | crontab - &&
+        crond -f
+      "
+    networks:
+      - sre-network
+    restart: unless-stopped
+
+  report-web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.web
+    container_name: sre-report-web
+    ports:
+      - "8080:8080"
+    environment:
+      - FLASK_ENV=production
+    volumes:
+      - ../reports:/app/reports:ro
+    networks:
+      - sre-network
+    restart: unless-stopped
+    depends_on:
+      - sre-analytics
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: sre-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    networks:
+      - sre-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: sre-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin123}
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ../dashboards/grafana:/var/lib/grafana/dashboards:ro
+    networks:
+      - sre-network
+    restart: unless-stopped
+
+networks:
+  sre-network:
+    driver: bridge
+
+volumes:
+  grafana-storage:
+    driver: local

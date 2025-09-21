@@ -1,0 +1,230 @@
+# Multi-Source Configuration for E-commerce Microservices Analytics
+# Integrates with actual monitoring infrastructure from the e-commerce system
+
+data_sources:
+  # Prometheus - Primary metrics source from ecommerce infrastructure
+  - source_type: prometheus
+    name: ecommerce_prometheus
+    connection_params:
+      url: "http://localhost:9090"
+    authentication:
+      # Basic auth if needed
+      # username: "${PROMETHEUS_USERNAME}"
+      # password: "${PROMETHEUS_PASSWORD}"
+      # bearer_token: "${PROMETHEUS_TOKEN}"
+    metric_mappings:
+      # Map specific ecommerce service metrics to standard types
+      response_time:
+        - "http_request_duration_seconds"
+        - "spring_boot_request_duration_seconds"
+        - "http_server_requests_seconds"
+      error_rate:
+        - "http_requests_total{status=~'4..|5..'}"
+        - "spring_boot_http_requests_total{status=~'4..|5..'}"
+      throughput:
+        - "http_requests_total"
+        - "spring_boot_http_requests_total"
+      cpu_utilization:
+        - "process_cpu_usage"
+        - "system_cpu_usage"
+        - "container_cpu_usage_seconds_total"
+      memory_utilization:
+        - "jvm_memory_used_bytes"
+        - "process_resident_memory_bytes"
+        - "container_memory_usage_bytes"
+      availability:
+        - "up"
+        - "spring_boot_application_ready_time"
+    polling_interval: 60
+    enabled: true
+
+  # AppDynamics - If configured for the ecommerce system
+  - source_type: appdynamics
+    name: ecommerce_appdynamics
+    connection_params:
+      host: "${APPDYNAMICS_CONTROLLER_HOST_NAME:-your-controller.saas.appdynamics.com}"
+      port: 443
+      ssl: true
+    authentication:
+      username: "${APPDYNAMICS_AGENT_ACCOUNT_NAME:-username}"
+      password: "${APPDYNAMICS_AGENT_ACCOUNT_ACCESS_KEY:-password}"
+      account: "${APPDYNAMICS_AGENT_ACCOUNT_NAME:-account}"
+    polling_interval: 300
+    enabled: false  # Enable when AppDynamics is configured
+
+  # File-based data source for testing and historical data
+  - source_type: csv_file
+    name: ecommerce_load_test_results
+    connection_params:
+      file_path: "/Users/shiva/Projects/ecommerce-microservices/reports/examples/sample_sre_metrics_data.json"
+      file_type: "json"
+    polling_interval: 3600
+    enabled: true
+
+  # Custom API endpoint for application-specific metrics
+  - source_type: custom_api
+    name: ecommerce_custom_metrics
+    connection_params:
+      url: "http://localhost:8080/actuator/metrics"
+      endpoints:
+        - "/actuator/metrics/jvm.memory.used"
+        - "/actuator/metrics/http.server.requests"
+        - "/actuator/metrics/spring.boot.application.ready.time"
+    authentication:
+      # If actuator endpoints are secured
+      # username: "${ACTUATOR_USERNAME}"
+      # password: "${ACTUATOR_PASSWORD}"
+    polling_interval: 120
+    enabled: false  # Enable when custom endpoints are available
+
+analytics:
+  # SLO targets specific to e-commerce microservices
+  default_slo_targets:
+    # Default targets for all services
+    default:
+      - metric_type: "response_time"
+        target_value: 200
+        comparison: "less_than"
+        unit: "ms"
+        description: "API response time should be under 200ms for good user experience"
+      - metric_type: "error_rate"
+        target_value: 0.1
+        comparison: "less_than"
+        unit: "%"
+        description: "Error rate should be under 0.1% for production stability"
+      - metric_type: "availability"
+        target_value: 99.9
+        comparison: "greater_than"
+        unit: "%"
+        description: "Service availability should be above 99.9%"
+      - metric_type: "cpu_utilization"
+        target_value: 80
+        comparison: "less_than"
+        unit: "%"
+        description: "CPU utilization should be under 80% to allow for traffic spikes"
+      - metric_type: "memory_utilization"
+        target_value: 85
+        comparison: "less_than"
+        unit: "%"
+        description: "Memory utilization should be under 85% to prevent OOM"
+
+    # User Service - Critical for authentication
+    user-service:
+      - metric_type: "response_time"
+        target_value: 150
+        comparison: "less_than"
+        unit: "ms"
+        description: "User service should respond under 150ms for login/auth operations"
+      - metric_type: "error_rate"
+        target_value: 0.05
+        comparison: "less_than"
+        unit: "%"
+        description: "Authentication errors should be minimal"
+      - metric_type: "availability"
+        target_value: 99.95
+        comparison: "greater_than"
+        unit: "%"
+        description: "User service is critical - higher availability requirement"
+
+    # Product Service - High traffic, caching optimized
+    product-service:
+      - metric_type: "response_time"
+        target_value: 100
+        comparison: "less_than"
+        unit: "ms"
+        description: "Product listings should load very fast with caching"
+      - metric_type: "error_rate"
+        target_value: 0.1
+        comparison: "less_than"
+        unit: "%"
+        description: "Product catalog should be highly reliable"
+      - metric_type: "throughput"
+        target_value: 100
+        comparison: "greater_than"
+        unit: "rps"
+        description: "Should handle high product browsing traffic"
+
+    # Order Service - Business critical
+    order-service:
+      - metric_type: "response_time"
+        target_value: 300
+        comparison: "less_than"
+        unit: "ms"
+        description: "Order processing can be slightly slower but must be reliable"
+      - metric_type: "error_rate"
+        target_value: 0.01
+        comparison: "less_than"
+        unit: "%"
+        description: "Order errors directly impact revenue - must be minimal"
+      - metric_type: "availability"
+        target_value: 99.99
+        comparison: "greater_than"
+        unit: "%"
+        description: "Order service is revenue-critical"
+
+    # Cart Service - Session management critical
+    cart-service:
+      - metric_type: "response_time"
+        target_value: 100
+        comparison: "less_than"
+        unit: "ms"
+        description: "Shopping cart should be very responsive"
+      - metric_type: "error_rate"
+        target_value: 0.1
+        comparison: "less_than"
+        unit: "%"
+        description: "Cart errors hurt user experience"
+
+    # API Gateway - Entry point
+    api-gateway:
+      - metric_type: "response_time"
+        target_value: 50
+        comparison: "less_than"
+        unit: "ms"
+        description: "Gateway should add minimal latency"
+      - metric_type: "error_rate"
+        target_value: 0.05
+        comparison: "less_than"
+        unit: "%"
+        description: "Gateway errors affect all services"
+      - metric_type: "availability"
+        target_value: 99.99
+        comparison: "greater_than"
+        unit: "%"
+        description: "Gateway is single point of entry"
+
+  analysis_window_hours: 24
+  confidence_threshold: 0.7
+  enable_ai_recommendations: true
+  export_formats: ["json", "csv", "html", "pdf"]
+
+reporting:
+  output_directory: "reports/generated"
+  template_directory: "templates"
+  default_format: "html"
+  include_charts: true
+  chart_resolution: "high"
+  enable_pdf_generation: true
+
+  # E-commerce specific reporting preferences
+  ecommerce_context:
+    business_hours: "09:00-21:00"
+    peak_traffic_hours: ["12:00-13:00", "18:00-21:00"]
+    critical_services: ["user-service", "order-service", "payment-service", "api-gateway"]
+    revenue_impacting_metrics: ["order-service.error_rate", "payment-service.availability", "cart-service.response_time"]
+
+global_settings:
+  timezone: "UTC"
+  log_level: "INFO"
+  cache_duration_minutes: 15
+  max_concurrent_sources: 5
+  retry_attempts: 3
+  retry_delay_seconds: 5
+
+  # E-commerce specific settings
+  ecommerce_settings:
+    environment: "production"  # or "staging", "development"
+    business_impact_threshold: 0.1  # Error rate threshold for business impact alerts
+    revenue_tracking: true
+    customer_segment_analysis: true
+    seasonal_adjustment: true  # Adjust baselines for seasonal traffic patterns
