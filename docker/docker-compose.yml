@@ -69,7 +69,7 @@ services:
     image: prom/prometheus:latest
     container_name: sre-prometheus
     ports:
-      - "9090:9090"
+      - "9091:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     command:
@@ -85,7 +85,7 @@ services:
     image: grafana/grafana:latest
     container_name: sre-grafana
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin123}
     volumes:

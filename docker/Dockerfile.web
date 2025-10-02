@@ -1,4 +1,4 @@
-# SRE Analytics Docker Image
+# SRE Analytics Web UI Docker Image
 FROM python:3.9-slim
 
 # Set working directory
@@ -27,26 +27,29 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY src/ ./src/
 COPY config/ ./config/
-COPY *.py ./
+COPY templates/ ./templates/
+COPY static/ ./static/
+COPY app.py ./
 
 # Create necessary directories
 RUN mkdir -p reports/generated logs
 
 # Set environment variables
 ENV PYTHONPATH=/app/src
-ENV REPORT_OUTPUT_PATH=/app/reports/generated
+ENV FLASK_APP=app.py
+ENV FLASK_ENV=production
 
-# Expose port for potential web interface
+# Expose port
 EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import sys; sys.path.append('src'); from reports.enhanced_sre_report_system import EnhancedSREReportSystem; print('OK')" || exit 1
+    CMD python -c "import requests; requests.get('http://localhost:8080')" || exit 1
 
-# Default command
-CMD ["python", "generate_sre_report.py"]
+# Run Flask app
+CMD ["python", "-m", "flask", "run", "--host=0.0.0.0", "--port=8080"]
 
 # Labels for metadata
 LABEL maintainer="SRE Team"
-LABEL description="SRE Analytics and Reporting System"
+LABEL description="SRE Analytics Web UI"
 LABEL version="1.0"
