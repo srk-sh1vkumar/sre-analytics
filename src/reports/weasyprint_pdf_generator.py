@@ -11,6 +11,9 @@ from typing import Optional, Dict, Any, List
 import base64
 import os
 
+# Import PDF styles from centralized module
+from templates.pdf_styles import PDFStyles
+
 class WeasyPrintPDFGenerator:
     """PDF generator using WeasyPrint for high-quality output"""
 
@@ -91,179 +94,16 @@ class WeasyPrintPDFGenerator:
             return ""
 
     def _get_pdf_css(self) -> str:
-        """Get CSS optimized for PDF generation"""
-        return """
-        @page {
-            size: A4;
-            margin: 2cm;
-            @top-center {
-                content: "SRE Performance Report";
-                font-family: Arial, sans-serif;
-                font-size: 10pt;
-                color: #666;
-            }
-            @bottom-center {
-                content: "Page " counter(page) " of " counter(pages);
-                font-family: Arial, sans-serif;
-                font-size: 10pt;
-                color: #666;
-            }
-        }
-
-        body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            font-size: 10pt;
-            line-height: 1.4;
-            color: #333;
-        }
-
-        .container {
-            max-width: none;
-            background: white;
-            padding: 0;
-            border-radius: 0;
-            box-shadow: none;
-            margin: 0;
-        }
-
-        .header h1 {
-            font-size: 18pt;
-            margin-bottom: 10pt;
-            page-break-after: avoid;
-        }
-
-        .section h2 {
-            font-size: 14pt;
-            color: #333;
-            border-bottom: 2pt solid #007acc;
-            padding-bottom: 5pt;
-            margin-top: 20pt;
-            margin-bottom: 10pt;
-            page-break-after: avoid;
-        }
-
-        .section h3 {
-            font-size: 12pt;
-            margin-top: 15pt;
-            margin-bottom: 8pt;
-            page-break-after: avoid;
-        }
-
-        .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15pt;
-            margin: 15pt 0;
-            page-break-inside: avoid;
-        }
-
-        .summary-card {
-            background: #f8f9fa;
-            padding: 10pt;
-            border-radius: 5pt;
-            border-left: 3pt solid #007acc;
-            text-align: center;
-            page-break-inside: avoid;
-        }
-
-        .summary-card .value {
-            font-size: 16pt;
-            font-weight: bold;
-            color: #007acc;
-        }
-
-        .chart-container {
-            margin: 15pt 0;
-            text-align: center;
-            page-break-inside: avoid;
-        }
-
-        .chart-container img {
-            max-width: 100%;
-            max-height: 300pt;
-        }
-
-        .metrics-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 15pt 0;
-            font-size: 9pt;
-        }
-
-        .metrics-table th,
-        .metrics-table td {
-            padding: 6pt;
-            border: 1pt solid #ddd;
-            text-align: left;
-        }
-
-        .metrics-table th {
-            background-color: #f5f5f5;
-            font-weight: bold;
-        }
-
-        .metrics-table tbody tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-
-        .incident-section {
-            margin: 20pt 0;
-            padding: 15pt;
-            background: #fff3cd;
-            border-radius: 5pt;
-            border-left: 4pt solid #ffc107;
-            page-break-inside: avoid;
-        }
-
-        .incident-critical {
-            background: #f8d7da;
-            border-left-color: #dc3545;
-        }
-
-        .llm-analysis {
-            background: #e7f3ff;
-            padding: 12pt;
-            border-radius: 5pt;
-            border-left: 3pt solid #007acc;
-            margin: 10pt 0;
-            font-size: 9pt;
-            page-break-inside: avoid;
-        }
-
-        .recommendation-item {
-            background: #f8f9fa;
-            border: 1pt solid #ddd;
-            border-radius: 5pt;
-            padding: 10pt;
-            margin: 8pt 0;
-            border-left: 3pt solid #007acc;
-            page-break-inside: avoid;
-        }
-
-        .status-compliant { color: #28a745; font-weight: bold; }
-        .status-at-risk { color: #ffc107; font-weight: bold; }
-        .status-breached { color: #dc3545; font-weight: bold; }
-
-        /* Page break rules */
-        .section {
-            page-break-before: auto;
-        }
-
-        .trend-section {
-            page-break-before: auto;
-        }
-
-        /* Hide elements that don't work well in PDF */
-        .interactive-element {
-            display: none;
-        }
-
-        /* Ensure good contrast for printing */
-        a {
-            color: #000 !important;
-            text-decoration: underline;
-        }
         """
+        Get CSS optimized for PDF generation
+
+        Note: CSS styles are now centralized in templates.pdf_styles module
+        for better maintainability and separation of concerns.
+
+        Returns:
+            str: Complete CSS string for PDF generation
+        """
+        return PDFStyles.get_complete_pdf_css()
 
     def add_metadata_to_pdf(self, pdf_path: str, metadata: Dict[str, Any]) -> bool:
         """

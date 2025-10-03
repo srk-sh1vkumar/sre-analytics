@@ -57,8 +57,13 @@ services:
       - "8080:8080"
     environment:
       - FLASK_ENV=production
+      - APPDYNAMICS_CONTROLLER_HOST=${APPDYNAMICS_CONTROLLER_HOST}
+      - APPDYNAMICS_CLIENT_ID=${APPDYNAMICS_CLIENT_ID}
+      - APPDYNAMICS_CLIENT_SECRET=${APPDYNAMICS_CLIENT_SECRET}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     volumes:
-      - ../reports:/app/reports:ro
+      - ../reports:/app/reports
     networks:
       - sre-network
     restart: unless-stopped
