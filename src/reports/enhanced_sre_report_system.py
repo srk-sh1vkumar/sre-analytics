@@ -332,6 +332,9 @@ class EnhancedSREReportSystem:
         # Set up visualization styling
         self._setup_styling()
 
+        # Log PDF generator availability
+        self._log_pdf_capabilities()
+
     def _load_yaml(self, filename: str) -> Dict[str, Any]:
         """Load YAML configuration file with defaults"""
         try:
@@ -362,6 +365,26 @@ class EnhancedSREReportSystem:
         sns.set_palette("husl")
         plt.rcParams['figure.figsize'] = (12, 8)
         plt.rcParams['font.size'] = 10
+
+    def _log_pdf_capabilities(self):
+        """Log available PDF generation methods"""
+        self.logger.info("=" * 60)
+        self.logger.info("PDF Generation Capabilities:")
+        if BROWSER_PDF_AVAILABLE:
+            self.logger.info("  ✅ PRIMARY: Browser PDF (pyppeteer) - Exact HTML rendering")
+        else:
+            self.logger.info("  ❌ Browser PDF not available")
+
+        if WEASYPRINT_AVAILABLE:
+            self.logger.info("  ✅ FALLBACK: WeasyPrint - CSS-based rendering")
+        else:
+            self.logger.info("  ❌ WeasyPrint not available")
+
+        if REPORTLAB_AVAILABLE:
+            self.logger.info("  ✅ LAST RESORT: ReportLab - Basic PDF")
+        else:
+            self.logger.info("  ❌ ReportLab not available")
+        self.logger.info("=" * 60)
 
     def generate_metrics_with_trends(self, services: List[str] = None,
                                    days_back: int = 30) -> List[SLOMetric]:
@@ -760,13 +783,20 @@ class EnhancedSREReportSystem:
     def create_enhanced_pdf_report(self, metrics: List[SLOMetric],
                                  incident: IncidentData = None, output_path: str = None,
                                  use_browser: bool = True) -> str:
-        """Create PDF report using enhanced template with browser or WeasyPrint"""
+        """
+        Create PDF report using enhanced template
+
+        Priority order:
+        1. Browser PDF (pyppeteer) - exact HTML rendering (PRIMARY)
+        2. WeasyPrint - CSS-based rendering (FALLBACK)
+        3. ReportLab - basic PDF (LAST RESORT)
+        """
         if not output_path:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             output_path = f"reports/generated/enhanced_sre_report_{timestamp}.pdf"
 
-        # Try browser PDF generation first for exact HTML matching
-        if use_browser and BROWSER_PDF_AVAILABLE:
+        # PRIMARY: Try browser PDF generation first for exact HTML matching
+        if BROWSER_PDF_AVAILABLE and use_browser:
             try:
                 self.logger.info("Generating PDF using headless browser for exact HTML matching...")
 
@@ -801,21 +831,20 @@ class EnhancedSREReportSystem:
                 success = browser_generator.create_pdf_from_html_sync(rendered_html, output_path)
 
                 if success:
-                    self.logger.info(f"✅ Enhanced PDF generated with browser: {output_path}")
+                    self.logger.info(f"✅ Enhanced PDF generated with browser (PRIMARY): {output_path}")
                     return output_path
                 else:
-                    self.logger.warning("Browser PDF failed, falling back to WeasyPrint...")
+                    self.logger.warning("⚠️ Browser PDF generation failed, falling back to WeasyPrint...")
 
             except Exception as e:
-                self.logger.warning(f"Browser PDF failed: {e}, falling back to WeasyPrint...")
+                self.logger.warning(f"⚠️ Browser PDF failed: {e}, falling back to WeasyPrint...")
 
-        # Set up environment for WeasyPrint
-        import os
-        os.environ['PKG_CONFIG_PATH'] = '/opt/homebrew/lib/pkgconfig'
-        os.environ['DYLD_LIBRARY_PATH'] = '/opt/homebrew/lib'
-
-        # Try WeasyPrint as fallback
+        # FALLBACK: Try WeasyPrint if browser PDF unavailable or failed
         if WEASYPRINT_AVAILABLE:
+            # Set up environment for WeasyPrint
+            import os
+            os.environ['PKG_CONFIG_PATH'] = '/opt/homebrew/lib/pkgconfig'
+            os.environ['DYLD_LIBRARY_PATH'] = '/opt/homebrew/lib'
             try:
                 self.logger.info("Generating enhanced PDF using WeasyPrint...")
 
@@ -853,15 +882,16 @@ class EnhancedSREReportSystem:
                 )
 
                 if success:
-                    self.logger.info(f"✅ Enhanced PDF generated with WeasyPrint: {output_path}")
+                    self.logger.info(f"✅ Enhanced PDF generated with WeasyPrint (FALLBACK): {output_path}")
                     return output_path
                 else:
-                    self.logger.warning("WeasyPrint failed, falling back to ReportLab...")
+                    self.logger.warning("⚠️ WeasyPrint failed, falling back to ReportLab...")
 
             except Exception as e:
-                self.logger.warning(f"WeasyPrint failed: {e}, falling back to ReportLab...")
+                self.logger.warning(f"⚠️ WeasyPrint failed: {e}, falling back to ReportLab...")
 
-        # Fallback to ReportLab if WeasyPrint fails
+        # LAST RESORT: Fallback to ReportLab for basic PDF
+        self.logger.info("Using ReportLab for basic PDF generation (LAST RESORT)")
         return self._create_reportlab_fallback_pdf(metrics, incident, output_path)
 
     def create_simple_pdf_report(self, html_path: str, metrics: List[SLOMetric],
