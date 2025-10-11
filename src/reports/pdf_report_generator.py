@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 from src.config.app_config import get_config
 from src.exceptions import (
-    PDFGenerationError, FileWriteError, TemplateRenderError
+    PDFGenerationError, FileWriteError, TemplateError
 )
 
 # Import data classes from extracted modules
