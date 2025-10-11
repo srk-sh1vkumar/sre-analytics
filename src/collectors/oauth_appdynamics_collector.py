@@ -14,6 +14,13 @@ from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from pathlib import Path
 from dotenv import load_dotenv
+from src.config.app_config import get_config
+from src.exceptions import (
+    SREAnalyticsError, APIConnectionError, APIAuthenticationError, APIResponseError,
+    APITimeoutError, APIDataError, ConfigLoadError, FileReadError,
+    FileWriteError, DataCollectionError, MetricCollectionError
+)
+from src.utils.error_handler import retry_on_error, ErrorContext, handle_api_error
 
 # Load environment variables
 load_dotenv()
@@ -59,12 +66,13 @@ class OAuthAppDynamicsCollector:
         self.logger = logging.getLogger(__name__)
         self.token: Optional[OAuthToken] = None
 
-        # OAuth credentials from environment
-        self.client_id = os.getenv('APPDYNAMICS_CLIENT_ID')
-        self.client_secret = os.getenv('APPDYNAMICS_CLIENT_SECRET')
+        # OAuth credentials from centralized config
+        app_config = get_config()
+        self.client_id = app_config.appdynamics.client_id
+        self.client_secret = app_config.appdynamics.client_secret
 
         if not self.client_id or not self.client_secret:
-            raise ValueError("AppDynamics OAuth credentials not found in environment variables")
+            raise ValueError("AppDynamics OAuth credentials not found in configuration")
 
         # Get initial token
         self._get_oauth_token()
@@ -75,30 +83,30 @@ class OAuthAppDynamicsCollector:
             with open(config_path, 'r') as file:
                 config = yaml.safe_load(file)
 
-            # Update controller host from environment
-            config['controller']['host'] = os.getenv(
-                'APPDYNAMICS_CONTROLLER_HOST',
-                config.get('controller', {}).get('host', 'localhost')
-            )
+            # Use centralized configuration
+            app_config = get_config()
 
-            # Set primary application from environment if available
+            # Update controller host from centralized config
+            if app_config.appdynamics.controller_host:
+                config['controller']['host'] = app_config.appdynamics.controller_host
+
+            # Set primary application from centralized config if available
             if 'applications' not in config:
                 config['applications'] = {}
-            config['applications']['primary_app'] = os.getenv(
-                'DEFAULT_APPLICATION_NAME',
-                config.get('applications', {}).get('primary_app', 'Default-App')
-            )
+            if app_config.appdynamics.primary_app:
+                config['applications']['primary_app'] = app_config.appdynamics.primary_app
 
             return config
-        except Exception as e:
-            self.logger.warning(f"Failed to load AppDynamics config: {e}")
-            # Return default config
+        except FileNotFoundError as e:
+            self.logger.warning(f"Config file not found: {config_path}, using defaults")
+            # Return default config from centralized configuration
+            app_config = get_config()
             return {
                 'controller': {
-                    'host': os.getenv('APPDYNAMICS_CONTROLLER_HOST', 'localhost')
+                    'host': app_config.appdynamics.controller_host or 'localhost'
                 },
                 'applications': {
-                    'primary_app': os.getenv('DEFAULT_APPLICATION_NAME', 'Default-App')
+                    'primary_app': app_config.appdynamics.primary_app or 'Default-App'
                 },
                 'api': {
                     'timeout': 30,
@@ -538,7 +546,8 @@ class OAuthAppDynamicsCollector:
         """Save collected metrics to JSON file"""
         if not output_path:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_dir = os.getenv('REPORT_OUTPUT_PATH', 'reports/generated')
+            app_config = get_config()
+            output_dir = app_config.report.output_path
             output_path = f"{output_dir}/appdynamics_oauth_metrics_{timestamp}.json"
 
         # Ensure directory exists
@@ -551,8 +560,16 @@ class OAuthAppDynamicsCollector:
             with open(output_path, 'w') as file:
                 json.dump(serializable_data, file, indent=2)
             self.logger.info(f"Metrics saved to {output_path}")
-        except Exception as e:
-            self.logger.error(f"Failed to save metrics to file: {e}")
+        except (IOError, OSError) as e:
+            raise FileWriteError(
+                f"Failed to save metrics to file: {output_path}",
+                context={'output_path': output_path, 'error': str(e)}
+            )
+        except (TypeError, ValueError) as e:
+            raise APIDataError(
+                f"Failed to serialize metrics data to JSON",
+                context={'error': str(e)}
+            )
 
     def _make_json_serializable(self, obj):
         """Convert datetime objects to strings for JSON serialization"""
@@ -593,7 +610,11 @@ class OAuthAppDynamicsCollector:
             diagnosis['network_issues'] = True
             diagnosis['recommendations'].append("Network connectivity issues - check URL and firewall settings")
             self.logger.error(f"Connection Error: {e}")
-        except Exception as e:
+        except requests.exceptions.Timeout as e:
+            diagnosis['network_issues'] = True
+            diagnosis['recommendations'].append("Connection timeout - check network latency and server availability")
+            self.logger.error(f"Timeout Error: {e}")
+        except requests.exceptions.RequestException as e:
             self.logger.error(f"Basic connectivity test failed: {e}")
 
         # Test 2: OAuth endpoint availability
@@ -606,7 +627,7 @@ class OAuthAppDynamicsCollector:
                 self.logger.info("✅ OAuth endpoint is available")
             else:
                 diagnosis['recommendations'].append("OAuth endpoint not found - check AppDynamics version and OAuth enablement")
-        except Exception as e:
+        except requests.exceptions.RequestException as e:
             self.logger.error(f"OAuth endpoint test failed: {e}")
 
         # Test 3: Try different authentication methods
@@ -671,9 +692,12 @@ class OAuthAppDynamicsCollector:
             else:
                 test_results['error_message'] = "No applications accessible"
 
-        except Exception as e:
+        except (APIAuthenticationError, APIConnectionError, APIResponseError) as e:
             test_results['error_message'] = str(e)
             self.logger.error(f"Connection test failed: {e}")
+        except requests.exceptions.RequestException as e:
+            test_results['error_message'] = f"Network error: {str(e)}"
+            self.logger.error(f"Connection test failed with network error: {e}")
 
         return test_results
 
@@ -711,8 +735,21 @@ if __name__ == "__main__":
             print(f"• Infrastructure Metrics: {len(metrics['infrastructure_metrics'])}")
             print(f"• Application Health: {metrics['application_health']['availability_percentage']:.2f}% availability")
 
+    except (ConfigLoadError, FileReadError) as e:
+        print(f"❌ Configuration error: {e}")
+        print("\n🔧 Troubleshooting:")
+        print("   1. Check config/appdynamics_config.yaml exists and is valid")
+        print("   2. Verify environment variables are set correctly")
+    except (APIAuthenticationError, APIConnectionError) as e:
+        print(f"❌ API connection error: {e}")
+        print("\n🔧 Troubleshooting:")
+    except SREAnalyticsError as e:
+        print(f"❌ SRE Analytics error: {e}")
+        if e.context:
+            print(f"   Context: {e.context}")
+        print("\n🔧 Troubleshooting:")
     except Exception as e:
-        print(f"❌ Error initializing collector: {e}")
+        print(f"❌ Unexpected error: {e}")
         print("\n🔧 Troubleshooting:")
         print("1. Check .env file has correct OAuth credentials")
         print("2. Verify controller URL is accessible")

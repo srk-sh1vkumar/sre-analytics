@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 from pathlib import Path
+from src.config.app_config import get_config
 
 @dataclass
 class MetricData:
@@ -52,20 +53,16 @@ class AppDynamicsCollector:
             with open(config_path, 'r') as file:
                 config = yaml.safe_load(file)
 
-            # Replace environment variables
-            import os
-            config['controller']['host'] = os.getenv(
-                'APPDYNAMICS_CONTROLLER_HOST_NAME',
-                config['controller']['host']
-            )
-            config['controller']['account'] = os.getenv(
-                'APPDYNAMICS_AGENT_ACCOUNT_NAME',
-                config['controller']['account']
-            )
-            config['controller']['access_key'] = os.getenv(
-                'APPDYNAMICS_AGENT_ACCOUNT_ACCESS_KEY',
-                config['controller']['access_key']
-            )
+            # Use centralized configuration for environment variables
+            app_config = get_config()
+
+            # Override with environment variables if available
+            if app_config.appdynamics.controller_host:
+                config['controller']['host'] = app_config.appdynamics.controller_host
+            if app_config.appdynamics.account:
+                config['controller']['account'] = app_config.appdynamics.account
+            if app_config.appdynamics.access_key:
+                config['controller']['access_key'] = app_config.appdynamics.access_key
 
             return config
         except Exception as e:

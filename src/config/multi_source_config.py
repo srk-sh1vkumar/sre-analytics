@@ -22,7 +22,7 @@ class AnalyticsConfig:
     analysis_window_hours: int = 24
     confidence_threshold: float = 0.6
     enable_ai_recommendations: bool = True
-    export_formats: List[str] = None
+    export_formats: Optional[List[str]] = None
 
 
 @dataclass
@@ -82,7 +82,7 @@ class ConfigurationManager:
             self.config = self._create_default_config()
             return self.config
 
-    def save_config(self, config: Optional[MultiSourceConfig] = None):
+    def save_config(self, config: Optional[MultiSourceConfig] = None) -> None:
         """Save configuration to file"""
         try:
             config_to_save = config or self.config
@@ -294,7 +294,7 @@ class ConfigurationManager:
             'global_settings': config.global_settings
         }
 
-    def add_data_source(self, data_source: DataSourceConfig):
+    def add_data_source(self, data_source: DataSourceConfig) -> None:
         """Add a new data source to configuration"""
         if not self.config:
             self.config = self._create_default_config()
@@ -307,7 +307,7 @@ class ConfigurationManager:
         self.config.data_sources.append(data_source)
         self.save_config()
 
-    def remove_data_source(self, name: str):
+    def remove_data_source(self, name: str) -> None:
         """Remove a data source from configuration"""
         if not self.config:
             return
@@ -315,7 +315,7 @@ class ConfigurationManager:
         self.config.data_sources = [ds for ds in self.config.data_sources if ds.name != name]
         self.save_config()
 
-    def update_data_source(self, name: str, updates: Dict[str, Any]):
+    def update_data_source(self, name: str, updates: Dict[str, Any]) -> None:
         """Update a data source configuration"""
         if not self.config:
             return
@@ -334,12 +334,18 @@ class ConfigurationManager:
         if not self.config:
             self.load_config()
 
+        if self.config is None:
+            return []
+
         return [ds for ds in self.config.data_sources if ds.enabled]
 
     def get_slo_targets(self, service_name: str) -> List[SLOTarget]:
         """Get SLO targets for a service"""
         if not self.config:
             self.load_config()
+
+        if self.config is None:
+            return []
 
         # Check for service-specific targets first
         targets_data = self.config.analytics.default_slo_targets.get(
@@ -364,10 +370,13 @@ class ConfigurationManager:
 
         return slo_targets
 
-    def set_slo_targets(self, service_name: str, targets: List[SLOTarget]):
+    def set_slo_targets(self, service_name: str, targets: List[SLOTarget]) -> None:
         """Set SLO targets for a service"""
         if not self.config:
             self.load_config()
+
+        if self.config is None:
+            return
 
         targets_data = []
         for target in targets:
@@ -384,7 +393,7 @@ class ConfigurationManager:
 
     def expand_environment_variables(self, config_dict: Dict[str, Any]) -> Dict[str, Any]:
         """Expand environment variables in configuration"""
-        def expand_value(value):
+        def expand_value(value: Any) -> Any:
             if isinstance(value, str) and value.startswith('${') and value.endswith('}'):
                 env_var = value[2:-1]
                 return os.getenv(env_var, value)
@@ -395,7 +404,9 @@ class ConfigurationManager:
             else:
                 return value
 
-        return expand_value(config_dict)
+        result = expand_value(config_dict)
+        assert isinstance(result, dict)
+        return result
 
     def validate_config(self) -> List[str]:
         """Validate configuration and return list of issues"""
@@ -454,6 +465,18 @@ class ConfigurationManager:
         """Get configuration summary"""
         if not self.config:
             self.load_config()
+
+        if self.config is None:
+            return {
+                "total_data_sources": 0,
+                "enabled_data_sources": 0,
+                "source_types": [],
+                "analysis_window_hours": 0,
+                "ai_recommendations_enabled": False,
+                "export_formats": [],
+                "pdf_generation_enabled": False,
+                "validation_issues": 0
+            }
 
         enabled_sources = self.get_enabled_sources()
 

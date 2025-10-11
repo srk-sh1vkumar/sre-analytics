@@ -25,6 +25,7 @@ import jinja2
 import weasyprint
 from openai import OpenAI
 import anthropic
+from src.config.app_config import get_config
 
 @dataclass
 class SLOMetric:
@@ -70,17 +71,18 @@ class LLMAnalyzer:
     def __init__(self, provider: str = "anthropic", api_key: str = None):
         self.provider = provider.lower()
         self.logger = logging.getLogger(__name__)
+        config = get_config()
 
         if api_key:
             self.api_key = api_key
         else:
-            # Try to get from environment
+            # Use centralized configuration
             if self.provider == "openai":
-                self.api_key = os.getenv("OPENAI_API_KEY")
+                self.api_key = config.llm.openai_api_key
                 if self.api_key:
                     self.client = OpenAI(api_key=self.api_key)
             elif self.provider == "anthropic":
-                self.api_key = os.getenv("ANTHROPIC_API_KEY")
+                self.api_key = config.llm.anthropic_api_key
                 if self.api_key:
                     self.client = anthropic.Anthropic(api_key=self.api_key)
 

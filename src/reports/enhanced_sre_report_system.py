@@ -23,6 +23,22 @@ from plotly.subplots import make_subplots
 import base64
 from io import BytesIO
 import jinja2
+from src.config.app_config import get_config
+from src.config.constants import (
+    DEFAULT_TREND_DAYS, AVAILABILITY_MIN, AVAILABILITY_MAX, LATENCY_P95_TARGET_MS,
+    LATENCY_P95_WARNING_MS, LATENCY_P95_CRITICAL_MS, COMPLIANCE_THRESHOLD_COMPLIANT,
+    METRIC_AVAILABILITY, METRIC_LATENCY_P95, UNIT_PERCENTAGE, UNIT_MILLISECONDS,
+    STATUS_COMPLIANT, STATUS_AT_RISK, STATUS_BREACHED, PDF_COLOR_GRAY_LIGHT,
+    CHART_WIDTH, CHART_HEIGHT, CHART_DPI
+)
+
+# Import extracted modules
+from src.reports.llm_analyzer import LLMAnalyzer, SLOMetric, IncidentData, PerformanceSnapshot
+from src.reports.incident_generator import IncidentGenerator
+from src.reports.metrics_generator import MetricsGenerator
+from src.reports.chart_generator import ChartGenerator
+from src.reports.html_template_builder import HTMLTemplateBuilder
+
 try:
     from reportlab.lib.pagesizes import letter, A4
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
@@ -48,271 +64,6 @@ except ImportError as e:
     BROWSER_PDF_AVAILABLE = False
     print(f"Browser PDF generator not available: {e}")
 
-try:
-    from openai import OpenAI
-    OPENAI_AVAILABLE = True
-except ImportError:
-    OPENAI_AVAILABLE = False
-
-try:
-    import anthropic
-    ANTHROPIC_AVAILABLE = True
-except ImportError:
-    ANTHROPIC_AVAILABLE = False
-
-@dataclass
-class SLOMetric:
-    """SLO metric data structure with trend data"""
-    service_name: str
-    metric_name: str
-    current_value: float
-    slo_target: float
-    sla_target: float
-    status: str  # "compliant", "at_risk", "breached"
-    error_budget_consumed: float  # percentage
-    timestamp: datetime
-    unit: str = ""
-    description: str = ""
-    trend_data: List[float] = None  # Historical data for trending
-
-@dataclass
-class IncidentData:
-    """Incident data structure"""
-    incident_id: str
-    application_name: str
-    start_time: datetime
-    end_time: Optional[datetime]
-    severity: str
-    title: str
-    description: str
-    affected_services: List[str]
-    root_cause: str
-    resolution_steps: List[str]
-    llm_analysis: str
-    lessons_learned: str
-
-@dataclass
-class PerformanceSnapshot:
-    """Performance snapshot for incident analysis"""
-    timestamp: datetime
-    service_name: str
-    metrics: Dict[str, float]
-    logs: List[str]
-    errors: List[str]
-
-class LLMAnalyzer:
-    """Enhanced LLM analyzer for incidents and performance"""
-
-    def __init__(self, provider: str = "anthropic", api_key: str = None):
-        self.provider = provider.lower()
-        self.logger = logging.getLogger(__name__)
-        self.client = None
-
-        # Initialize LLM client
-        if api_key:
-            self.api_key = api_key
-        else:
-            if self.provider == "openai" and OPENAI_AVAILABLE:
-                self.api_key = os.getenv("OPENAI_API_KEY")
-                if self.api_key:
-                    self.client = OpenAI(api_key=self.api_key)
-            elif self.provider == "anthropic" and ANTHROPIC_AVAILABLE:
-                self.api_key = os.getenv("ANTHROPIC_API_KEY")
-                if self.api_key:
-                    self.client = anthropic.Anthropic(api_key=self.api_key)
-
-    def analyze_incident_root_cause(self, incident: IncidentData,
-                                   snapshots: List[PerformanceSnapshot]) -> str:
-        """Analyze incident using LLM for root cause analysis"""
-        if not self.client:
-            return self._fallback_rca_analysis(incident, snapshots)
-
-        context = self._prepare_incident_context(incident, snapshots)
-
-        prompt = f"""
-        As an expert Site Reliability Engineer, analyze this production incident and provide a comprehensive root cause analysis.
-
-        {context}
-
-        Please provide:
-        1. Primary root cause identification
-        2. Contributing factors analysis
-        3. Impact assessment
-        4. Prevention recommendations
-        5. Monitoring improvements
-        6. Process improvements
-
-        Focus on actionable insights that will prevent similar incidents.
-        """
-
-        try:
-            if self.provider == "anthropic" and ANTHROPIC_AVAILABLE:
-                response = self.client.messages.create(
-                    model="claude-3-sonnet-20240229",
-                    max_tokens=1500,
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                return response.content[0].text
-            elif self.provider == "openai" and OPENAI_AVAILABLE:
-                response = self.client.chat.completions.create(
-                    model="gpt-4",
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=1500
-                )
-                return response.choices[0].message.content
-        except Exception as e:
-            self.logger.error(f"LLM analysis failed: {e}")
-            return self._fallback_rca_analysis(incident, snapshots)
-
-    def _prepare_incident_context(self, incident: IncidentData,
-                                 snapshots: List[PerformanceSnapshot]) -> str:
-        """Prepare context for incident analysis"""
-        context = f"""
-INCIDENT DETAILS:
-- ID: {incident.incident_id}
-- Application: {incident.application_name}
-- Duration: {incident.start_time} to {incident.end_time or 'Ongoing'}
-- Severity: {incident.severity}
-- Title: {incident.title}
-- Description: {incident.description}
-- Affected Services: {', '.join(incident.affected_services)}
-- Initial Root Cause: {incident.root_cause}
-
-PERFORMANCE SNAPSHOTS:
-"""
-        for snapshot in snapshots[-5:]:  # Last 5 snapshots
-            context += f"\n[{snapshot.timestamp}] {snapshot.service_name}:\n"
-            context += f"  Metrics: {snapshot.metrics}\n"
-            if snapshot.errors:
-                context += f"  Errors: {snapshot.errors[:3]}\n"  # First 3 errors
-
-        return context
-
-    def _fallback_rca_analysis(self, incident: IncidentData,
-                              snapshots: List[PerformanceSnapshot]) -> str:
-        """Fallback analysis without LLM"""
-        analysis = f"""
-ROOT CAUSE ANALYSIS (Rule-based):
-
-Primary Analysis:
-- Incident Type: {incident.severity} severity incident in {incident.application_name}
-- Duration: {(incident.end_time - incident.start_time).total_seconds() / 60:.1f} minutes
-- Services Affected: {len(incident.affected_services)} services
-
-Contributing Factors:
-- Initial root cause identified: {incident.root_cause}
-- Performance degradation observed across multiple snapshots
-- Error patterns suggest {incident.affected_services[0] if incident.affected_services else 'unknown'} service issues
-
-Recommendations:
-1. Implement enhanced monitoring for {incident.application_name}
-2. Add automated alerting for similar patterns
-3. Review deployment processes and rollback procedures
-4. Conduct post-incident review with team
-5. Update runbooks based on lessons learned
-
-Next Steps:
-- Document incident in knowledge base
-- Update monitoring thresholds
-- Schedule follow-up review meeting
-"""
-        return analysis
-
-    def analyze_performance_metrics(self, metrics: List[SLOMetric], summary: Dict[str, Any]) -> str:
-        """Analyze performance metrics using LLM for insights"""
-        if not self.client:
-            return self._fallback_performance_analysis(metrics, summary)
-
-        # Prepare metrics context
-        context = self._prepare_performance_context(metrics, summary)
-
-        prompt = f"""
-        As an expert Site Reliability Engineer, analyze these SLO/SLA performance metrics and provide actionable insights.
-
-        {context}
-
-        Please provide:
-        1. Overall system health assessment
-        2. Key performance trends and patterns
-        3. Risk areas and potential issues
-        4. Specific recommendations for improvement
-        5. Capacity planning insights
-        6. Monitoring and alerting suggestions
-
-        Focus on actionable insights that will improve system reliability and performance.
-        """
-
-        try:
-            if self.provider == "anthropic" and ANTHROPIC_AVAILABLE:
-                response = self.client.messages.create(
-                    model="claude-3-sonnet-20240229",
-                    max_tokens=1000,
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                return response.content[0].text
-            elif self.provider == "openai" and OPENAI_AVAILABLE:
-                response = self.client.chat.completions.create(
-                    model="gpt-4",
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=1000
-                )
-                return response.choices[0].message.content
-        except Exception as e:
-            self.logger.error(f"LLM performance analysis failed: {e}")
-            return self._fallback_performance_analysis(metrics, summary)
-
-    def _prepare_performance_context(self, metrics: List[SLOMetric], summary: Dict[str, Any]) -> str:
-        """Prepare context for performance analysis"""
-        context = f"""
-SYSTEM OVERVIEW:
-- Total Services: {summary['total_services']}
-- Total Metrics: {summary['total_metrics']}
-- Compliance Rate: {summary['compliance_percentage']:.1f}%
-- At Risk Metrics: {summary['at_risk_count']}
-- Breached SLOs: {summary['breached_count']}
-- Overall Health: {summary['health_status']}
-
-DETAILED METRICS:
-"""
-        for metric in metrics:
-            trend_indicator = "📈" if metric.trend_data and len(metric.trend_data) > 1 and metric.trend_data[-1] > metric.trend_data[0] else "📉"
-            context += f"""
-- {metric.service_name} {metric.metric_name}:
-  Current: {metric.current_value:.2f}{metric.unit} (Target: {metric.slo_target:.2f}{metric.unit})
-  Status: {metric.status.upper()}
-  Error Budget Used: {metric.error_budget_consumed:.1f}%
-  Trend: {trend_indicator}
-"""
-        return context
-
-    def _fallback_performance_analysis(self, metrics: List[SLOMetric], summary: Dict[str, Any]) -> str:
-        """Fallback analysis without LLM"""
-        analysis = f"""
-SYSTEM HEALTH ASSESSMENT:
-
-Overall Status: {summary['health_status']}
-- {summary['compliant_count']}/{summary['total_metrics']} metrics are compliant ({summary['compliance_percentage']:.1f}%)
-- {summary['breached_count']} critical SLO breaches requiring immediate attention
-- {summary['at_risk_count']} metrics at risk of breaching SLO targets
-
-KEY INSIGHTS:
-• System shows {"good" if summary['breached_count'] == 0 else "concerning"} reliability patterns
-• Performance trends indicate {"stable" if summary['at_risk_count'] < 2 else "degrading"} system behavior
-• Error budget consumption {"within acceptable limits" if all(m.error_budget_consumed < 50 for m in metrics) else "approaching critical levels"}
-
-IMMEDIATE ACTIONS NEEDED:
-{"• Address critical SLO breaches to prevent service degradation" if summary['breached_count'] > 0 else "• Continue monitoring current performance levels"}
-• Review and optimize services with high error budget consumption
-• Implement proactive alerting for at-risk metrics
-• Consider capacity scaling for services showing performance degradation
-
-STRATEGIC RECOMMENDATIONS:
-• Establish automated remediation for common performance issues
-• Implement predictive alerting based on trend analysis
-• Review SLO targets to ensure they align with business requirements
-• Enhance monitoring coverage for early issue detection
-"""
-        return analysis
 
 class EnhancedSREReportSystem:
     """Enhanced SRE report system with incident analysis"""
@@ -326,8 +77,12 @@ class EnhancedSREReportSystem:
         self.slo_config = self._load_yaml("slo_definitions.yaml")
         self.sla_config = self._load_yaml("sla_thresholds.yaml")
 
-        # Initialize LLM analyzer
+        # Initialize extracted module components
         self.llm_analyzer = LLMAnalyzer()
+        self.incident_generator = IncidentGenerator()
+        self.metrics_generator = MetricsGenerator()
+        self.chart_generator = ChartGenerator()
+        self.html_template_builder = HTMLTemplateBuilder()
 
         # Set up visualization styling
         self._setup_styling()
@@ -398,41 +153,41 @@ class EnhancedSREReportSystem:
 
         for service_name in services:
             # Generate trend data for each metric type
-            trend_days = 30
+            trend_days = DEFAULT_TREND_DAYS
 
-            # Availability trend (99.5% - 99.99%)
-            availability_trend = self._generate_trend_data(99.9, 0.05, trend_days)
+            # Availability trend
+            availability_trend = self._generate_trend_data(AVAILABILITY_MAX, 0.05, trend_days)
             current_availability = availability_trend[-1]
 
             availability_metric = SLOMetric(
                 service_name=service_name,
-                metric_name="availability",
+                metric_name=METRIC_AVAILABILITY,
                 current_value=current_availability,
-                slo_target=99.9,
-                sla_target=99.9,
-                status=self._get_compliance_status(current_availability, 99.9),
-                error_budget_consumed=max(0, (99.9 - current_availability) / 0.1 * 100),
+                slo_target=AVAILABILITY_MAX,
+                sla_target=AVAILABILITY_MAX,
+                status=self._get_compliance_status(current_availability, AVAILABILITY_MAX),
+                error_budget_consumed=max(0, (AVAILABILITY_MAX - current_availability) / 0.1 * 100),
                 timestamp=current_time,
-                unit="%",
+                unit=UNIT_PERCENTAGE,
                 description=f"Service availability for {service_name}",
                 trend_data=availability_trend
             )
             metrics.append(availability_metric)
 
             # Latency trend
-            latency_trend = self._generate_trend_data(200, 30, trend_days, min_val=50)
+            latency_trend = self._generate_trend_data(LATENCY_P95_TARGET_MS, 30, trend_days, min_val=50)
             current_latency = latency_trend[-1]
 
             latency_metric = SLOMetric(
                 service_name=service_name,
-                metric_name="latency_p95",
+                metric_name=METRIC_LATENCY_P95,
                 current_value=current_latency,
-                slo_target=200,
-                sla_target=500,
-                status=self._get_compliance_status(current_latency, 200, inverse=True),
-                error_budget_consumed=max(0, (current_latency - 200) / 200 * 100),
+                slo_target=LATENCY_P95_TARGET_MS,
+                sla_target=LATENCY_P95_CRITICAL_MS,
+                status=self._get_compliance_status(current_latency, LATENCY_P95_TARGET_MS, inverse=True),
+                error_budget_consumed=max(0, (current_latency - LATENCY_P95_TARGET_MS) / LATENCY_P95_TARGET_MS * 100),
                 timestamp=current_time,
-                unit="ms",
+                unit=UNIT_MILLISECONDS,
                 description=f"95th percentile response time for {service_name}",
                 trend_data=latency_trend
             )
@@ -479,18 +234,18 @@ class EnhancedSREReportSystem:
         """Determine compliance status"""
         if inverse:
             if current <= target:
-                return "compliant"
+                return STATUS_COMPLIANT
             elif current <= target * 1.2:
-                return "at_risk"
+                return STATUS_AT_RISK
             else:
-                return "breached"
+                return STATUS_BREACHED
         else:
             if current >= target:
-                return "compliant"
-            elif current >= target * 0.999:
-                return "at_risk"
+                return STATUS_COMPLIANT
+            elif current >= target * COMPLIANCE_THRESHOLD_COMPLIANT:
+                return STATUS_AT_RISK
             else:
-                return "breached"
+                return STATUS_BREACHED
 
     def create_trend_visualizations(self, metrics: List[SLOMetric], save_images: bool = False) -> Dict[str, str]:
         """Create comprehensive trend visualizations"""
@@ -841,10 +596,13 @@ class EnhancedSREReportSystem:
 
         # FALLBACK: Try WeasyPrint if browser PDF unavailable or failed
         if WEASYPRINT_AVAILABLE:
-            # Set up environment for WeasyPrint
+            # Set up environment for WeasyPrint (macOS-specific if configured)
             import os
-            os.environ['PKG_CONFIG_PATH'] = '/opt/homebrew/lib/pkgconfig'
-            os.environ['DYLD_LIBRARY_PATH'] = '/opt/homebrew/lib'
+            config = get_config()
+            if config.system.pkg_config_path:
+                os.environ['PKG_CONFIG_PATH'] = config.system.pkg_config_path
+            if config.system.dyld_library_path:
+                os.environ['DYLD_LIBRARY_PATH'] = config.system.dyld_library_path
             try:
                 self.logger.info("Generating enhanced PDF using WeasyPrint...")
 
@@ -1259,8 +1017,345 @@ class EnhancedSREReportSystem:
 
         return html_content
 
+    def _get_html_header_and_styles(self) -> str:
+        """Generate HTML header with embedded styles"""
+        return '''<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app_name }} - Comprehensive SRE Report</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        .header {
+            border-bottom: 3px solid #007acc;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #333;
+            margin: 0;
+            font-size: 2.5em;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .summary-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #007acc;
+            text-align: center;
+        }
+        .summary-card .value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #007acc;
+        }
+        .trend-section {
+            margin: 40px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+        .chart-container {
+            margin: 30px 0;
+            text-align: center;
+        }
+        .chart-container img {
+            max-width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .incident-section {
+            margin: 40px 0;
+            padding: 25px;
+            background: #fff3cd;
+            border-radius: 8px;
+            border-left: 5px solid #ffc107;
+        }
+        .incident-critical {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+        .incident-high {
+            background: #ffe6cc;
+            border-left-color: #fd7e14;
+        }
+        .llm-analysis {
+            background: #e7f3ff;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #007acc;
+            margin: 20px 0;
+        }
+        .metrics-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 30px 0;
+        }
+        .metrics-table th,
+        .metrics-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .metrics-table th {
+            background-color: #007acc;
+            color: white;
+        }
+        .status-compliant { color: #28a745; font-weight: bold; }
+        .status-at-risk { color: #ffc107; font-weight: bold; }
+        .status-breached { color: #dc3545; font-weight: bold; }
+        .section {
+            margin: 40px 0;
+        }
+        .section h2 {
+            color: #333;
+            border-bottom: 2px solid #007acc;
+            padding-bottom: 10px;
+        }
+        @media print {
+            body { background: white; }
+            .container { box-shadow: none; }
+        }
+    </style>
+</head>'''
+
+    def _get_html_executive_summary(self) -> str:
+        """Generate executive summary section"""
+        return '''        <div class="section">
+            <h2>Executive Summary</h2>
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <h3>Total Services</h3>
+                    <div class="value">{{ summary.total_services }}</div>
+                </div>
+                <div class="summary-card">
+                    <h3>Compliance Rate</h3>
+                    <div class="value">{{ "%.1f"|format(summary.compliance_percentage) }}%</div>
+                </div>
+                <div class="summary-card">
+                    <h3>At Risk</h3>
+                    <div class="value status-at-risk">{{ summary.at_risk_count }}</div>
+                </div>
+                <div class="summary-card">
+                    <h3>SLO Breaches</h3>
+                    <div class="value status-breached">{{ summary.breached_count }}</div>
+                </div>
+                <div class="summary-card">
+                    <h3>System Health</h3>
+                    <div class="value status-{% if summary.health_status == 'Healthy' %}compliant{% else %}breached{% endif %}">
+                        {{ summary.health_status }}
+                    </div>
+                </div>
+            </div>
+        </div>'''
+
+    def _get_html_trend_charts(self) -> str:
+        """Generate trend charts section"""
+        return '''        <div class="trend-section">
+            <h2>🔄 Performance Trends & Analysis</h2>
+            <p>The following charts show performance trends over the last 30 days with current status indicators.</p>
+
+            {% for chart_name, chart_data in trend_charts.items() %}
+            <div class="chart-container">
+                <h3>{{ chart_name.replace('_', ' ').title() }} Performance Trends</h3>
+                <img src="{{ chart_data }}" alt="{{ chart_name }} Trend Chart">
+            </div>
+            {% endfor %}
+        </div>'''
+
+    def _get_html_incident_analysis(self) -> str:
+        """Generate incident analysis section"""
+        return '''        {% if has_incident %}
+        <div class="section">
+            <div class="incident-section {% if incident.severity == 'Critical' %}incident-critical{% elif incident.severity == 'High' %}incident-high{% endif %}">
+                <h2>🚨 Incident Analysis Report</h2>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 20px 0;">
+                    <div><strong>Incident ID:</strong> {{ incident.incident_id }}</div>
+                    <div><strong>Severity:</strong> <span class="status-breached">{{ incident.severity }}</span></div>
+                    <div><strong>Application:</strong> {{ incident.application_name }}</div>
+                    <div><strong>Duration:</strong> {{ incident.start_time.strftime('%Y-%m-%d %H:%M') }} - {{ incident.end_time.strftime('%H:%M') if incident.end_time else 'Ongoing' }}</div>
+                </div>
+
+                <div style="margin: 20px 0;">
+                    <h3>Description</h3>
+                    <p>{{ incident.description }}</p>
+                </div>
+
+                <div style="margin: 20px 0;">
+                    <h3>Affected Services</h3>
+                    <ul>
+                        {% for service in incident.affected_services %}
+                        <li>{{ service }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <div style="margin: 20px 0;">
+                    <h3>Initial Root Cause Analysis</h3>
+                    <p>{{ incident.root_cause }}</p>
+                </div>
+
+                <div class="llm-analysis">
+                    <h3>🤖 AI-Powered Deep Analysis & Recommendations</h3>
+                    <div style="white-space: pre-line;">{{ incident.llm_analysis }}</div>
+                </div>
+
+                <div style="margin: 20px 0;">
+                    <h3>Resolution Steps Taken</h3>
+                    <ol>
+                        {% for step in incident.resolution_steps %}
+                        <li>{{ step }}</li>
+                        {% endfor %}
+                    </ol>
+                </div>
+
+                <div style="margin: 20px 0;">
+                    <h3>Lessons Learned</h3>
+                    <div style="background: #e8f5e8; padding: 15px; border-radius: 5px;">
+                        <div style="white-space: pre-line;">{{ incident.lessons_learned }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}'''
+
+    def _get_html_metrics_table(self) -> str:
+        """Generate metrics table section"""
+        return '''        <div class="section">
+            <h2>📊 Current SLO Metrics Status</h2>
+            <table class="metrics-table">
+                <thead>
+                    <tr>
+                        <th>Service</th>
+                        <th>Metric</th>
+                        <th>Current Value</th>
+                        <th>SLO Target</th>
+                        <th>Status</th>
+                        <th>Error Budget Used</th>
+                        <th>30-Day Trend</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for metric in metrics %}
+                    <tr>
+                        <td>{{ metric.service_name }}</td>
+                        <td>{{ metric.metric_name|replace('_', ' ')|title }}</td>
+                        <td>{{ "%.2f"|format(metric.current_value) }} {{ metric.unit }}</td>
+                        <td>{{ "%.2f"|format(metric.slo_target) }} {{ metric.unit }}</td>
+                        <td class="status-{{ metric.status }}">{{ metric.status|title }}</td>
+                        <td>{{ "%.1f"|format(metric.error_budget_consumed) }}%</td>
+                        <td>
+                            {% if metric.trend_data %}
+                                {% set trend_change = metric.trend_data[-1] - metric.trend_data[0] %}
+                                {% if trend_change > 0 %}
+                                    {% if metric.metric_name == 'availability' %}📈 Improving{% else %}📉 Degrading{% endif %}
+                                {% else %}
+                                    {% if metric.metric_name == 'availability' %}📉 Degrading{% else %}📈 Improving{% endif %}
+                                {% endif %}
+                            {% else %}
+                            No trend data
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>'''
+
+    def _get_html_recommendations(self) -> str:
+        """Generate recommendations section"""
+        return '''        <div class="section">
+            <h2>🎯 Key Recommendations</h2>
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
+                <ul>
+                    {% if summary.breached_count > 0 %}
+                    <li><strong>High Priority:</strong> Address {{ summary.breached_count }} SLO breach(es) immediately</li>
+                    {% endif %}
+                    {% if summary.at_risk_count > 0 %}
+                    <li><strong>Medium Priority:</strong> Monitor {{ summary.at_risk_count }} service(s) at risk of SLO breach</li>
+                    {% endif %}
+                    <li>Review error budget consumption and implement proactive alerting</li>
+                    <li>Analyze performance trends for capacity planning</li>
+                    <li>Update incident response procedures based on latest analysis</li>
+                </ul>
+            </div>
+        </div>'''
+
+    def _get_html_footer(self) -> str:
+        """Generate report footer"""
+        return '''        <div class="section">
+            <small>
+                <p><strong>Report Features:</strong></p>
+                <ul>
+                    <li>✅ Real-time SLO/SLA monitoring with trend analysis</li>
+                    <li>✅ AI-powered incident root cause analysis</li>
+                    <li>✅ Performance visualizations with 30-day historical data</li>
+                    <li>✅ Automated recommendations based on performance patterns</li>
+                    <li>✅ Comprehensive incident documentation and lessons learned</li>
+                </ul>
+                <p>This report combines traditional SRE metrics with advanced AI analysis to provide actionable insights for system reliability improvement.</p>
+                <p><em>Generated at {{ report_time }} on {{ report_date }}</em></p>
+            </small>
+        </div>'''
+
     def _get_comprehensive_html_template(self) -> str:
-        """Return comprehensive HTML template"""
+        """
+        Return comprehensive HTML template
+
+        Composed from modular template sections for better maintainability.
+        Each section is extracted to its own method for easier testing and modification.
+        """
+        return f'''<!DOCTYPE html>
+<html lang="en">
+{self._get_html_header_and_styles()}
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{{{{ app_name }}}}</h1>
+            <div class="subtitle">Comprehensive SRE Performance & Incident Report</div>
+            <div class="subtitle">Generated: {{{{ report_date }}}} at {{{{ report_time }}}}</div>
+        </div>
+
+{self._get_html_executive_summary()}
+
+{self._get_html_trend_charts()}
+
+{self._get_html_incident_analysis()}
+
+{self._get_html_metrics_table()}
+
+{self._get_html_recommendations()}
+
+{self._get_html_footer()}
+    </div>
+</body>
+</html>
+        '''
+
+    def _get_comprehensive_html_template_old(self) -> str:
+        """
+        DEPRECATED: Old monolithic template method (kept for reference)
+        Use _get_comprehensive_html_template() instead
+        """
         return '''
 <!DOCTYPE html>
 <html lang="en">
@@ -1573,7 +1668,7 @@ class EnhancedSREReportSystem:
         self.logger.info(f"Generating comprehensive report suite for {application_name}")
 
         # Generate performance metrics with trends
-        metrics = self.generate_metrics_with_trends(services, days_back=30)
+        metrics = self.generate_metrics_with_trends(services, days_back=DEFAULT_TREND_DAYS)
 
         # Generate incident report if incident time provided
         incident = None

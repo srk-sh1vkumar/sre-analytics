@@ -16,9 +16,13 @@ from pathlib import Path
 # Import our SRE modules
 from src.reports.enhanced_sre_report_system import EnhancedSREReportSystem
 from src.collectors.oauth_appdynamics_collector import OAuthAppDynamicsCollector
+from src.config.app_config import get_config
+
+# Load configuration
+config = get_config()
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev-key-change-in-production')
+app.secret_key = config.flask.secret_key
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
