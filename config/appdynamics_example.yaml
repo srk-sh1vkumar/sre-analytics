@@ -1,0 +1,198 @@
+# AppDynamics Data Source Configuration Example
+#
+# This file shows how to configure AppDynamics integration with the SRE Analytics platform.
+# Copy this to config/data_sources/appdynamics.yaml and customize for your environment.
+
+# Data Source Configuration
+data_source:
+  # Type of data source
+  source_type: appdynamics
+
+  # Friendly name for this data source
+  name: "Production AppDynamics"
+
+  # Connection parameters
+  connection_params:
+    # AppDynamics controller hostname (without https://)
+    host: "mycompany.saas.appdynamics.com"
+
+    # Optional: Custom port (default: 443 for HTTPS)
+    port: 443
+
+    # Optional: Use HTTP instead of HTTPS (not recommended)
+    use_ssl: true
+
+  # Authentication (choose ONE method)
+  authentication:
+    # Method 1: Username + Password (Basic Auth)
+    username: "admin@customer1"
+    password: "your-password-here"
+
+    # Method 2: API Key (Recommended for programmatic access)
+    # api_key: "your-api-key-here"
+
+    # Method 3: OAuth Token
+    # oauth_token: "your-oauth-token-here"
+
+  # Optional: Metric mappings (map AppDynamics metrics to standard types)
+  metric_mappings:
+    "Average Response Time (ms)": "response_time"
+    "Calls per Minute": "throughput"
+    "Errors per Minute": "error_rate"
+    "Hardware Resources|CPU|%Busy": "cpu_utilization"
+    "Hardware Resources|Memory|Used %": "memory_utilization"
+
+  # Optional: Polling interval in seconds (default: 300)
+  polling_interval: 300
+
+  # Optional: Enable/disable this data source
+  enabled: true
+
+# SLO Target Configuration
+# Define SLO targets for your services (applications)
+slo_targets:
+  # Default targets (applied to all services unless overridden)
+  _default:
+    response_time: 200.0        # milliseconds
+    error_rate: 1.0             # percentage (1% = 1 error per 100 requests)
+    throughput: 100.0           # requests per minute minimum
+    availability: 99.9          # percentage
+    cpu_utilization: 80.0       # percentage (max acceptable)
+    memory_utilization: 85.0    # percentage (max acceptable)
+
+  # Service-specific overrides
+  "production-api":
+    response_time: 150.0        # Stricter for API
+    error_rate: 0.5             # Lower error tolerance
+    throughput: 500.0           # Higher traffic expected
+    availability: 99.95         # Higher availability requirement
+
+  "background-worker":
+    response_time: 500.0        # More lenient for background jobs
+    error_rate: 2.0             # Higher error tolerance
+    cpu_utilization: 90.0       # Can use more CPU
+
+  "database-service":
+    response_time: 100.0        # Fast response required
+    error_rate: 0.1             # Very low error tolerance
+    availability: 99.99         # Critical service
+
+# Rate Limiting Configuration
+rate_limiting:
+  # Maximum API calls per time window
+  max_calls_per_window: 100
+
+  # Time window in seconds
+  time_window_seconds: 60
+
+  # Behavior when rate limit is hit: "wait" or "skip"
+  on_limit_exceeded: "wait"
+
+# Caching Configuration
+caching:
+  # Enable/disable caching
+  enabled: true
+
+  # Cache TTL in seconds
+  ttl_seconds: 300
+
+  # Maximum cache size (number of entries)
+  max_entries: 100
+
+# Query Configuration
+query_config:
+  # Default time range for queries (hours)
+  default_time_range_hours: 1
+
+  # Maximum time range allowed (hours)
+  max_time_range_hours: 24
+
+  # Default aggregation method: avg, sum, max, min, p95, p99
+  default_aggregation: "avg"
+
+  # Maximum number of business transactions to query per application
+  max_business_transactions: 10
+
+  # Include infrastructure metrics by default
+  include_infrastructure_metrics: true
+
+# Error Budget Configuration
+error_budget:
+  # How to calculate error budget consumption
+  # "percentage" = (current / target) * 100
+  # "linear" = absolute difference from target
+  calculation_method: "percentage"
+
+  # Warning threshold (% of error budget consumed)
+  warning_threshold: 70.0
+
+  # Critical threshold (% of error budget consumed)
+  critical_threshold: 100.0
+
+  # Alert on sustained breach (minutes)
+  sustained_breach_minutes: 15
+
+# Integration Features
+features:
+  # Enable automatic SLO monitoring
+  auto_slo_monitoring: true
+
+  # Enable health score calculation
+  health_score_enabled: true
+
+  # Generate insights and recommendations
+  insights_enabled: true
+
+  # Trend analysis
+  trend_analysis: true
+
+  # Number of data points for trend calculation
+  trend_data_points: 10
+
+# Logging Configuration
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: "INFO"
+
+  # Log AppDynamics API requests
+  log_api_requests: false
+
+  # Log rate limiting events
+  log_rate_limiting: true
+
+  # Log cache operations
+  log_cache_operations: false
+
+# Example Usage in Code:
+# from src.data_sources.appdynamics_integration import AppDynamicsIntegration
+# from src.data_sources.base import DataSourceConfig, DataSourceType
+# import yaml
+#
+# # Load config
+# with open('config/appdynamics.yaml') as f:
+#     config_data = yaml.safe_load(f)
+#
+# # Create config object
+# ds_config = DataSourceConfig(
+#     source_type=DataSourceType.APPDYNAMICS,
+#     name=config_data['data_source']['name'],
+#     connection_params=config_data['data_source']['connection_params'],
+#     authentication=config_data['data_source']['authentication'],
+#     enabled=config_data['data_source']['enabled']
+# )
+#
+# # Initialize integration
+# integration = AppDynamicsIntegration(
+#     config=ds_config,
+#     slo_targets=config_data['slo_targets']
+# )
+#
+# # Connect and query
+# if integration.connect():
+#     slo_metrics = integration.get_slo_metrics_for_services(
+#         services=["production-api", "background-worker"]
+#     )
+#
+#     # Get health report
+#     health_report = integration.get_service_health_report("production-api")
+#     print(f"Health Score: {health_report['health_score']}")
