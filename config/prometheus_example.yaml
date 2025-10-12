@@ -1,0 +1,249 @@
+# Prometheus Data Source Configuration Example
+#
+# This file shows how to configure Prometheus integration with the SRE Analytics platform.
+# Copy this to config/data_sources/prometheus.yaml and customize for your environment.
+
+# Data Source Configuration
+data_source:
+  # Type of data source
+  source_type: prometheus
+
+  # Friendly name for this data source
+  name: "Production Prometheus"
+
+  # Connection parameters
+  connection_params:
+    # Prometheus server URL
+    # For your ecommerce-microservices project:
+    url: "http://localhost:9090"  # Main Prometheus
+    # url: "http://localhost:9091"  # SRE Prometheus (alternative)
+
+    # Optional: Timeout for queries (seconds)
+    timeout: 30
+
+  # Authentication (optional - typically Prometheus doesn't require auth in dev)
+  authentication:
+    # Method 1: Basic Auth (if enabled on Prometheus)
+    # username: "admin"
+    # password: "password"
+
+    # Method 2: Bearer Token (if using with authentication proxy)
+    # bearer_token: "your-bearer-token-here"
+
+  # Optional: Enable/disable this data source
+  enabled: true
+
+  # Optional: Polling interval in seconds (default: 300)
+  polling_interval: 60  # Check every minute
+
+# SLO Target Configuration
+# Define SLO targets for your microservices
+slo_targets:
+  # Default targets (applied to all services unless overridden)
+  _default:
+    response_time: 200.0        # milliseconds
+    error_rate: 0.01            # 1% as rate (0.01)
+    throughput: 1.0             # 1 request/sec minimum (as rate)
+    availability: 0.999         # 99.9% as fraction (0.999)
+    cpu_utilization: 80.0       # percentage (max acceptable)
+    memory_utilization: 85.0    # percentage (max acceptable)
+
+  # Service-specific overrides for ecommerce-microservices
+  "product-service":
+    response_time: 150.0        # Faster response for product catalog
+    error_rate: 0.005           # Lower error tolerance (0.5%)
+    throughput: 10.0            # Higher traffic expected
+    availability: 0.995         # 99.5% availability
+
+  "cart-service":
+    response_time: 200.0        # Standard response time
+    error_rate: 0.01            # 1% error rate
+    availability: 0.999         # Critical service
+
+  "order-service":
+    response_time: 300.0        # Can be slower (business logic)
+    error_rate: 0.005           # Very low error tolerance
+    availability: 0.9995        # 99.95% - most critical
+
+  "api-gateway":
+    response_time: 100.0        # Fast gateway
+    error_rate: 0.01            # 1% error rate
+    throughput: 50.0            # High traffic
+    availability: 0.999         # Critical entry point
+
+  "user-service":
+    response_time: 200.0
+    error_rate: 0.01
+    availability: 0.999
+
+# Rate Limiting Configuration
+rate_limiting:
+  # Maximum API calls per time window
+  max_calls_per_window: 100
+
+  # Time window in seconds
+  time_window_seconds: 60
+
+  # Behavior when rate limit is hit: "wait" or "skip"
+  on_limit_exceeded: "wait"
+
+# Caching Configuration
+caching:
+  # Enable/disable caching
+  enabled: true
+
+  # Cache TTL in seconds (Prometheus data changes frequently)
+  ttl_seconds: 60  # 1 minute cache for real-time feel
+
+  # Maximum cache size (number of entries)
+  max_entries: 100
+
+# Query Configuration
+query_config:
+  # Default time range for queries (hours)
+  default_time_range_hours: 1
+
+  # Maximum time range allowed (hours)
+  max_time_range_hours: 24
+
+  # Query step/resolution (seconds)
+  query_step_seconds: 60  # 1 minute resolution
+
+  # Default metric types to query
+  default_metric_types:
+    - response_time
+    - error_rate
+    - throughput
+    - availability
+    - cpu_utilization
+    - memory_utilization
+
+# Prometheus-Specific Configuration
+prometheus:
+  # PromQL query templates for your microservices
+  # Customize these based on your actual Prometheus metrics
+  metric_queries:
+    response_time:
+      - 'histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="{service}"}[5m])) * 1000'
+      - 'avg(http_request_duration_seconds{job="{service}"}) * 1000'
+
+    error_rate:
+      - 'rate(http_requests_total{job="{service}",status=~"5.."}[5m])'
+      - 'sum(rate(http_requests_total{job="{service}",status=~"4..|5.."}[5m])) / sum(rate(http_requests_total{job="{service}"}[5m]))'
+
+    throughput:
+      - 'rate(http_requests_total{job="{service}"}[5m])'
+      - 'sum(rate(http_requests_total{job="{service}"}[1m]))'
+
+    availability:
+      - 'avg_over_time(up{job="{service}"}[5m])'
+
+    cpu_utilization:
+      - 'avg(rate(process_cpu_seconds_total{job="{service}"}[5m])) * 100'
+      - 'avg(container_cpu_usage_seconds_total{job="{service}"}) * 100'
+
+    memory_utilization:
+      - 'avg(process_resident_memory_bytes{job="{service}"}) / avg(node_memory_MemTotal_bytes) * 100'
+
+  # Service label names (how services are identified in Prometheus)
+  service_labels:
+    - "job"
+    - "service"
+    - "instance"
+    - "container"
+
+# Error Budget Configuration
+error_budget:
+  # How to calculate error budget consumption
+  calculation_method: "percentage"
+
+  # Warning threshold (% of error budget consumed)
+  warning_threshold: 70.0
+
+  # Critical threshold (% of error budget consumed)
+  critical_threshold: 100.0
+
+  # Alert on sustained breach (minutes)
+  sustained_breach_minutes: 15
+
+# Integration Features
+features:
+  # Enable automatic SLO monitoring
+  auto_slo_monitoring: true
+
+  # Enable health score calculation
+  health_score_enabled: true
+
+  # Generate insights and recommendations
+  insights_enabled: true
+
+  # Trend analysis
+  trend_analysis: true
+
+  # Number of data points for trend calculation
+  trend_data_points: 10
+
+  # Enable PromQL passthrough for custom queries
+  promql_passthrough: true
+
+# Logging Configuration
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: "INFO"
+
+  # Log Prometheus API requests
+  log_api_requests: false
+
+  # Log rate limiting events
+  log_rate_limiting: true
+
+  # Log cache operations
+  log_cache_operations: false
+
+# Example Usage in Code:
+# from src.data_sources.prometheus_integration import PrometheusIntegration
+# from src.data_sources.base import DataSourceConfig, DataSourceType
+# import yaml
+#
+# # Load config
+# with open('config/prometheus.yaml') as f:
+#     config_data = yaml.safe_load(f)
+#
+# # Create config object
+# ds_config = DataSourceConfig(
+#     source_type=DataSourceType.PROMETHEUS,
+#     name=config_data['data_source']['name'],
+#     connection_params=config_data['data_source']['connection_params'],
+#     authentication=config_data['data_source'].get('authentication'),
+#     enabled=config_data['data_source']['enabled']
+# )
+#
+# # Initialize integration
+# integration = PrometheusIntegration(
+#     config=ds_config,
+#     slo_targets=config_data['slo_targets'],
+#     rate_limit_calls=config_data['rate_limiting']['max_calls_per_window'],
+#     cache_ttl=config_data['caching']['ttl_seconds']
+# )
+#
+# # Connect and query
+# if integration.connect():
+#     # Get SLO metrics for your microservices
+#     services = ["product-service", "cart-service", "order-service", "api-gateway"]
+#     slo_metrics = integration.get_slo_metrics_for_services(services=services)
+#
+#     # Get health report for specific service
+#     health_report = integration.get_service_health_report("order-service", hours_back=24)
+#     print(f"Order Service Health Score: {health_report['health_score']['health_score']}")
+#
+#     # Execute custom PromQL query
+#     result = integration.query_promql('up{job="product-service"}')
+#     print(f"Product Service Status: {result}")
+#
+#     # Generate SRE report
+#     from src.reports.enhanced_sre_report_system import EnhancedSREReportSystem
+#     report_system = EnhancedSREReportSystem()
+#     report_system.generate_full_report_suite(
+#         application_name="E-Commerce Platform",
+#         services=services
+#     )
