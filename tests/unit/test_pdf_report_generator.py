@@ -62,6 +62,7 @@ class TestPDFReportGeneratorEnhancedPDF:
                 metric_name="latency",
                 current_value=100.0,
                 slo_target=200.0,
+                sla_target=220.0,  # Added for test compatibility
                 unit="ms",
                 status="compliant",
                 timestamp=datetime.now(),
@@ -74,6 +75,8 @@ class TestPDFReportGeneratorEnhancedPDF:
     def mock_incident(self):
         return IncidentData(
             incident_id="INC-001",
+            title="Test Incident",
+            description="Test incident description",
             application_name="TestApp",
             severity="High",
             start_time=datetime.now(),
@@ -252,6 +255,7 @@ class TestPDFReportGeneratorReportLabPDF:
                 metric_name="latency",
                 current_value=100.0,
                 slo_target=200.0,
+                sla_target=220.0,  # Added for test compatibility
                 unit="ms",
                 status="compliant",
                 timestamp=datetime.now(),
@@ -263,6 +267,7 @@ class TestPDFReportGeneratorReportLabPDF:
                 metric_name="latency",
                 current_value=250.0,
                 slo_target=200.0,
+                sla_target=220.0,  # Added for test compatibility
                 unit="ms",
                 status="breached",
                 timestamp=datetime.now(),
@@ -386,8 +391,30 @@ class TestPDFReportGeneratorSummaryStats:
     def test_create_summary_stats_all_compliant(self, generator):
         """Test summary with all compliant metrics"""
         metrics = [
-            SLOMetric("api", "latency", 100, 200, "ms", "compliant", datetime.now(), 10.0, []),
-            SLOMetric("db", "latency", 150, 200, "ms", "compliant", datetime.now(), 20.0, []),
+            SLOMetric(
+                service_name="api",
+                metric_name="latency",
+                current_value=100,
+                slo_target=200,
+                sla_target=220.0,
+                status="compliant",
+                error_budget_consumed=10.0,
+                timestamp=datetime.now(),
+                unit="ms",
+                trend_data=[]
+            ),
+            SLOMetric(
+                service_name="db",
+                metric_name="latency",
+                current_value=150,
+                slo_target=200,
+                sla_target=220.0,
+                status="compliant",
+                error_budget_consumed=20.0,
+                timestamp=datetime.now(),
+                unit="ms",
+                trend_data=[]
+            ),
         ]
 
         summary = generator._create_summary_stats(metrics)
@@ -403,8 +430,30 @@ class TestPDFReportGeneratorSummaryStats:
     def test_create_summary_stats_with_breaches(self, generator):
         """Test summary with breached SLOs"""
         metrics = [
-            SLOMetric("api", "latency", 100, 200, "ms", "compliant", datetime.now(), 10.0, []),
-            SLOMetric("db", "latency", 300, 200, "ms", "breached", datetime.now(), 95.0, []),
+            SLOMetric(
+                service_name="api",
+                metric_name="latency",
+                current_value=100,
+                slo_target=200,
+                sla_target=220.0,
+                status="compliant",
+                error_budget_consumed=10.0,
+                timestamp=datetime.now(),
+                unit="ms",
+                trend_data=[]
+            ),
+            SLOMetric(
+                service_name="db",
+                metric_name="latency",
+                current_value=300,
+                slo_target=200,
+                sla_target=220.0,
+                status="breached",
+                error_budget_consumed=95.0,
+                timestamp=datetime.now(),
+                unit="ms",
+                trend_data=[]
+            ),
         ]
 
         summary = generator._create_summary_stats(metrics)
@@ -415,9 +464,42 @@ class TestPDFReportGeneratorSummaryStats:
     def test_create_summary_stats_at_risk(self, generator):
         """Test summary with at-risk services"""
         metrics = [
-            SLOMetric("api", "latency", 100, 200, "ms", "compliant", datetime.now(), 10.0, []),
-            SLOMetric("db", "latency", 190, 200, "ms", "at_risk", datetime.now(), 70.0, []),
-            SLOMetric("cache", "latency", 195, 200, "ms", "at_risk", datetime.now(), 75.0, []),
+            SLOMetric(
+                service_name="api",
+                metric_name="latency",
+                current_value=100,
+                slo_target=200,
+                sla_target=220.0,
+                status="compliant",
+                error_budget_consumed=10.0,
+                timestamp=datetime.now(),
+                unit="ms",
+                trend_data=[]
+            ),
+            SLOMetric(
+                service_name="db",
+                metric_name="latency",
+                current_value=190,
+                slo_target=200,
+                sla_target=220.0,
+                status="at_risk",
+                error_budget_consumed=70.0,
+                timestamp=datetime.now(),
+                unit="ms",
+                trend_data=[]
+            ),
+            SLOMetric(
+                service_name="cache",
+                metric_name="latency",
+                current_value=195,
+                slo_target=200,
+                sla_target=220.0,
+                status="at_risk",
+                error_budget_consumed=75.0,
+                timestamp=datetime.now(),
+                unit="ms",
+                trend_data=[]
+            ),
         ]
 
         summary = generator._create_summary_stats(metrics)

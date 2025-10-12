@@ -89,6 +89,7 @@ class TestReportOrchestratorFullReportSuite:
                 metric_name="response_time",
                 current_value=150.0,
                 slo_target=200.0,
+                sla_target=220.0,  # Added for test compatibility
                 unit="ms",
                 status="compliant",
                 timestamp=datetime.now(),
@@ -100,6 +101,7 @@ class TestReportOrchestratorFullReportSuite:
                 metric_name="availability",
                 current_value=99.9,
                 slo_target=99.95,
+                sla_target=220.0,  # Added for test compatibility
                 unit="%",
                 status="at_risk",
                 timestamp=datetime.now(),
@@ -113,6 +115,8 @@ class TestReportOrchestratorFullReportSuite:
         """Create mock incident data"""
         return IncidentData(
             incident_id="INC-001",
+            title="Test Incident",
+            description="Test incident description",
             application_name="TestApp",
             severity="High",
             start_time=datetime.now() - timedelta(hours=2),
@@ -200,6 +204,7 @@ class TestReportOrchestratorHTMLReport:
                 metric_name="latency",
                 current_value=100.0,
                 slo_target=200.0,
+                sla_target=220.0,  # Added for test compatibility
                 unit="ms",
                 status="compliant",
                 timestamp=datetime.now(),
@@ -231,6 +236,8 @@ class TestReportOrchestratorHTMLReport:
         """Test HTML report with incident data"""
         incident = IncidentData(
             incident_id="INC-001",
+            title="Test Incident",
+            description="Test incident description",
             application_name="TestApp",
             severity="High",
             start_time=datetime.now(),
@@ -275,6 +282,7 @@ class TestReportOrchestratorPDFReport:
                 metric_name="latency",
                 current_value=100.0,
                 slo_target=200.0,
+                sla_target=220.0,  # Added for test compatibility
                 unit="ms",
                 status="compliant",
                 timestamp=datetime.now(),
@@ -333,6 +341,7 @@ class TestReportOrchestratorJSONExport:
                 metric_name="latency",
                 current_value=100.0,
                 slo_target=200.0,
+                sla_target=220.0,  # Added for test compatibility
                 unit="ms",
                 status="compliant",
                 timestamp=datetime.now(),
@@ -367,6 +376,8 @@ class TestReportOrchestratorJSONExport:
         """Test JSON export with incident data"""
         incident = IncidentData(
             incident_id="INC-001",
+            title="Test Incident",
+            description="Test incident description",
             application_name="TestApp",
             severity="High",
             start_time=datetime.now(),
@@ -407,10 +418,54 @@ class TestReportOrchestratorSummaryStats:
     def test_create_summary_stats_with_metrics(self, orchestrator):
         """Test summary statistics with various metrics"""
         metrics = [
-            SLOMetric("api", "latency", 100, 200, "ms", "compliant", datetime.now(), 10.0, []),
-            SLOMetric("api", "errors", 0.5, 1.0, "%", "compliant", datetime.now(), 20.0, []),
-            SLOMetric("db", "latency", 250, 200, "ms", "at_risk", datetime.now(), 60.0, []),
-            SLOMetric("cache", "latency", 500, 200, "ms", "breached", datetime.now(), 90.0, []),
+            SLOMetric(
+                service_name="api",
+                metric_name="latency",
+                current_value=100,
+                slo_target=200,
+                sla_target=220.0,
+                status="compliant",
+                error_budget_consumed=10.0,
+                timestamp=datetime.now(),
+                unit="ms",
+                trend_data=[]
+            ),
+            SLOMetric(
+                service_name="api",
+                metric_name="errors",
+                current_value=0.5,
+                slo_target=1.0,
+                sla_target=1.1,
+                status="compliant",
+                error_budget_consumed=20.0,
+                timestamp=datetime.now(),
+                unit="%",
+                trend_data=[]
+            ),
+            SLOMetric(
+                service_name="db",
+                metric_name="latency",
+                current_value=250,
+                slo_target=200,
+                sla_target=220.0,
+                status="at_risk",
+                error_budget_consumed=60.0,
+                timestamp=datetime.now(),
+                unit="ms",
+                trend_data=[]
+            ),
+            SLOMetric(
+                service_name="cache",
+                metric_name="latency",
+                current_value=500,
+                slo_target=200,
+                sla_target=220.0,
+                status="breached",
+                error_budget_consumed=90.0,
+                timestamp=datetime.now(),
+                unit="ms",
+                trend_data=[]
+            ),
         ]
 
         summary = orchestrator._create_summary_stats(metrics)
