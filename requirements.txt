@@ -40,6 +40,11 @@ anthropic>=0.18.0
 # Web UI for report generation
 flask>=2.3.2
 
+# FastAPI for RESTful API
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+
 # Optional: For advanced analytics
 # jupyter>=1.0.0
 # ipykernel>=6.25.0
