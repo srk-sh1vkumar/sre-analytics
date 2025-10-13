@@ -1,0 +1,188 @@
+# Splunk Data Source Configuration Example
+#
+# This file shows how to configure Splunk as a data source for SRE Analytics.
+# Copy this to your local configuration and update with your Splunk details.
+
+splunk:
+  # Splunk server connection
+  host: "splunk.your-company.com"
+  port: 8089
+  scheme: "https"  # http or https
+  verify_ssl: true
+  timeout: 30  # Request timeout in seconds
+
+  # Authentication (choose one method)
+
+  # Method 1: Token-based authentication (recommended)
+  token: "YOUR_SPLUNK_AUTH_TOKEN"
+
+  # Method 2: Username/password authentication
+  # username: "admin"
+  # password: "your_password"
+
+  # Search configuration
+  search:
+    max_results: 1000  # Maximum results per search
+    max_wait_time: 60  # Maximum wait time for search job (seconds)
+    default_index: "main"  # Default index to search
+
+  # Service-specific indexes
+  services:
+    product-service:
+      index: "ecommerce"
+      sourcetype: "spring:boot"
+      search_filter: 'service="product-service"'
+
+    user-service:
+      index: "ecommerce"
+      sourcetype: "spring:boot"
+      search_filter: 'service="user-service"'
+
+    cart-service:
+      index: "ecommerce"
+      sourcetype: "spring:boot"
+      search_filter: 'service="cart-service"'
+
+    order-service:
+      index: "ecommerce"
+      sourcetype: "spring:boot"
+      search_filter: 'service="order-service"'
+
+  # Error pattern detection
+  error_detection:
+    enabled: true
+    min_error_count: 5  # Minimum errors to report as pattern
+    lookback_hours: 24
+
+    # Exception patterns to track
+    exception_patterns:
+      - "NullPointerException"
+      - "SQLException"
+      - "TimeoutException"
+      - "ConnectionException"
+      - "OutOfMemoryError"
+
+    # Log level filters
+    error_levels:
+      - "ERROR"
+      - "FATAL"
+      - "CRITICAL"
+
+    # HTTP status codes to track
+    error_status_codes:
+      - 500  # Internal Server Error
+      - 502  # Bad Gateway
+      - 503  # Service Unavailable
+      - 504  # Gateway Timeout
+
+  # Incident correlation
+  incident_correlation:
+    enabled: true
+    pre_incident_window: 5  # Minutes before incident to analyze
+    post_incident_window: 60  # Minutes after incident to analyze
+    correlation_fields:
+      - "service"
+      - "host"
+      - "environment"
+
+  # Metric extraction from logs
+  metrics:
+    enabled: true
+
+    # Extract error rate from logs
+    error_rate:
+      enabled: true
+      time_span: "1m"  # Aggregation span
+      query_template: |
+        index={index} service={service}
+        | bin _time span={time_span}
+        | stats count(eval(status>=500)) as errors, count as total by _time
+        | eval error_rate = (errors / total) * 100
+
+    # Extract response time from logs (if available)
+    response_time:
+      enabled: true
+      time_span: "1m"
+      query_template: |
+        index={index} service={service} response_time=*
+        | bin _time span={time_span}
+        | stats avg(response_time) as avg_response_time by _time
+
+    # Extract request count
+    request_count:
+      enabled: true
+      time_span: "1m"
+      query_template: |
+        index={index} service={service}
+        | bin _time span={time_span}
+        | stats count by _time
+
+  # Alerting configuration
+  alerts:
+    enabled: false  # Set to true to enable Splunk alerting integration
+    alert_index: "sre_alerts"
+
+  # Rate limiting and caching
+  rate_limiting:
+    enabled: true
+    max_requests_per_minute: 60
+
+  caching:
+    enabled: true
+    ttl_seconds: 300  # 5 minutes
+
+# Example Usage:
+#
+# from src.data_sources.splunk_adapter import SplunkAdapter
+#
+# # Initialize with token
+# splunk = SplunkAdapter(
+#     host="splunk.company.com",
+#     token="your_token_here"
+# )
+#
+# # Test connection
+# if splunk.test_connection():
+#     print("Connected to Splunk!")
+#
+# # Search for errors
+# results = splunk.execute_search(
+#     search_query='index=ecommerce level=ERROR',
+#     earliest_time=datetime.now() - timedelta(hours=1),
+#     latest_time=datetime.now()
+# )
+#
+# # Detect error patterns
+# patterns = splunk.get_error_patterns(
+#     index="ecommerce",
+#     service="product-service",
+#     min_count=5
+# )
+#
+# # Correlate logs with incident
+# incident_logs = splunk.correlate_logs_with_incident(
+#     index="ecommerce",
+#     service="product-service",
+#     incident_time=datetime(2025, 10, 12, 15, 30),
+#     duration_minutes=60
+# )
+
+# Production Deployment Notes:
+#
+# 1. Use token-based authentication for better security
+# 2. Enable SSL verification in production
+# 3. Configure appropriate indexes for each service
+# 4. Tune max_results and max_wait_time based on your search patterns
+# 5. Enable rate limiting to avoid overwhelming Splunk
+# 6. Use caching for frequently accessed data
+# 7. Monitor Splunk license usage
+# 8. Set up appropriate search permissions in Splunk
+#
+# Security Best Practices:
+#
+# 1. Store tokens in environment variables, not in config files
+# 2. Use least-privilege access for search users
+# 3. Enable SSL/TLS for all connections
+# 4. Rotate tokens regularly
+# 5. Monitor API access logs
+# 6. Use role-based access control in Splunk
