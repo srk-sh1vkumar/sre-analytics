@@ -3,20 +3,21 @@ File Data Source Adapter
 Implements the generic data source interface for CSV and JSON files
 """
 
-import pandas as pd
 import json
 import logging
 from datetime import datetime
-from typing import Dict, List, Any, Optional
 from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import pandas as pd
 
 from .base import (
     DataSourceAdapter,
-    StandardMetric,
     DataSourceConfig,
-    QueryParams,
+    DataSourceType,
     MetricType,
-    DataSourceType
+    QueryParams,
+    StandardMetric,
 )
 
 
@@ -25,8 +26,8 @@ class FileAdapter(DataSourceAdapter):
 
     def __init__(self, config: DataSourceConfig):
         super().__init__(config)
-        self.file_path = config.connection_params.get('file_path')
-        self.file_type = config.connection_params.get('file_type', 'auto')
+        self.file_path = config.connection_params.get("file_path")
+        self.file_type = config.connection_params.get("file_type", "auto")
         self.logger = logging.getLogger(__name__)
         self.data_cache = None
         self.last_modified = None
@@ -65,11 +66,11 @@ class FileAdapter(DataSourceAdapter):
                 return True
 
             # Determine file type
-            if self.file_type == 'auto':
-                if file_path.suffix.lower() == '.csv':
-                    file_type = 'csv'
-                elif file_path.suffix.lower() == '.json':
-                    file_type = 'json'
+            if self.file_type == "auto":
+                if file_path.suffix.lower() == ".csv":
+                    file_type = "csv"
+                elif file_path.suffix.lower() == ".json":
+                    file_type = "json"
                 else:
                     self.logger.error(f"Unsupported file type: {file_path.suffix}")
                     return False
@@ -77,15 +78,15 @@ class FileAdapter(DataSourceAdapter):
                 file_type = self.file_type
 
             # Load data based on file type
-            if file_type == 'csv':
+            if file_type == "csv":
                 self.data_cache = pd.read_csv(file_path)
-            elif file_type == 'json':
-                with open(file_path, 'r') as f:
+            elif file_type == "json":
+                with open(file_path, "r") as f:
                     json_data = json.load(f)
                     if isinstance(json_data, list):
                         self.data_cache = pd.DataFrame(json_data)
-                    elif isinstance(json_data, dict) and 'data' in json_data:
-                        self.data_cache = pd.DataFrame(json_data['data'])
+                    elif isinstance(json_data, dict) and "data" in json_data:
+                        self.data_cache = pd.DataFrame(json_data["data"])
                     else:
                         self.data_cache = pd.DataFrame([json_data])
 
@@ -107,12 +108,12 @@ class FileAdapter(DataSourceAdapter):
         # Create mapping of common column name variations
         column_mappings = {
             # Timestamp columns
-            'timestamp': ['timestamp', 'time', 'datetime', 'date_time', 'ts'],
-            'service_name': ['service_name', 'service', 'application', 'app', 'component'],
-            'metric_name': ['metric_name', 'metric', 'name', 'metric_type'],
-            'value': ['value', 'val', 'measurement', 'amount'],
-            'metric_type': ['metric_type', 'type', 'category'],
-            'unit': ['unit', 'units', 'measurement_unit']
+            "timestamp": ["timestamp", "time", "datetime", "date_time", "ts"],
+            "service_name": ["service_name", "service", "application", "app", "component"],
+            "metric_name": ["metric_name", "metric", "name", "metric_type"],
+            "value": ["value", "val", "measurement", "amount"],
+            "metric_type": ["metric_type", "type", "category"],
+            "unit": ["unit", "units", "measurement_unit"],
         }
 
         # Apply mappings
@@ -125,8 +126,8 @@ class FileAdapter(DataSourceAdapter):
                     break
 
         # Ensure timestamp is datetime
-        if 'timestamp' in self.data_cache.columns:
-            self.data_cache['timestamp'] = pd.to_datetime(self.data_cache['timestamp'])
+        if "timestamp" in self.data_cache.columns:
+            self.data_cache["timestamp"] = pd.to_datetime(self.data_cache["timestamp"])
 
     def get_available_services(self) -> List[str]:
         """Get list of services from file data"""
@@ -134,13 +135,13 @@ class FileAdapter(DataSourceAdapter):
             if not self._load_data():
                 return []
 
-            if 'service_name' in self.data_cache.columns:
-                return sorted(self.data_cache['service_name'].unique().tolist())
-            elif 'service' in self.data_cache.columns:
-                return sorted(self.data_cache['service'].unique().tolist())
+            if "service_name" in self.data_cache.columns:
+                return sorted(self.data_cache["service_name"].unique().tolist())
+            elif "service" in self.data_cache.columns:
+                return sorted(self.data_cache["service"].unique().tolist())
             else:
                 # If no service column, return a default service name
-                return ['default_service']
+                return ["default_service"]
         except Exception as e:
             self.logger.error(f"Error getting available services: {e}")
             return []
@@ -154,13 +155,13 @@ class FileAdapter(DataSourceAdapter):
             # Filter data for the service
             service_data = self._filter_by_service(service_name)
 
-            if 'metric_name' in service_data.columns:
-                return sorted(service_data['metric_name'].unique().tolist())
-            elif 'metric' in service_data.columns:
-                return sorted(service_data['metric'].unique().tolist())
+            if "metric_name" in service_data.columns:
+                return sorted(service_data["metric_name"].unique().tolist())
+            elif "metric" in service_data.columns:
+                return sorted(service_data["metric"].unique().tolist())
             else:
                 # Return column names that might be metrics
-                excluded_cols = ['timestamp', 'service_name', 'service', 'metric_type', 'unit']
+                excluded_cols = ["timestamp", "service_name", "service", "metric_type", "unit"]
                 metric_cols = [col for col in service_data.columns if col not in excluded_cols]
                 return metric_cols
         except Exception as e:
@@ -172,10 +173,10 @@ class FileAdapter(DataSourceAdapter):
         if self.data_cache is None:
             return pd.DataFrame()
 
-        if 'service_name' in self.data_cache.columns:
-            return self.data_cache[self.data_cache['service_name'] == service_name]
-        elif 'service' in self.data_cache.columns:
-            return self.data_cache[self.data_cache['service'] == service_name]
+        if "service_name" in self.data_cache.columns:
+            return self.data_cache[self.data_cache["service_name"] == service_name]
+        elif "service" in self.data_cache.columns:
+            return self.data_cache[self.data_cache["service"] == service_name]
         else:
             # If no service column, return all data
             return self.data_cache
@@ -192,10 +193,9 @@ class FileAdapter(DataSourceAdapter):
                 service_data = self._filter_by_service(service)
 
                 # Filter by time range
-                if 'timestamp' in service_data.columns:
-                    mask = (
-                        (service_data['timestamp'] >= params.start_time) &
-                        (service_data['timestamp'] <= params.end_time)
+                if "timestamp" in service_data.columns:
+                    mask = (service_data["timestamp"] >= params.start_time) & (
+                        service_data["timestamp"] <= params.end_time
                     )
                     service_data = service_data[mask]
 
@@ -210,8 +210,9 @@ class FileAdapter(DataSourceAdapter):
 
         return metrics
 
-    def _extract_metrics_from_dataframe(self, df: pd.DataFrame, service_name: str,
-                                      params: QueryParams) -> List[StandardMetric]:
+    def _extract_metrics_from_dataframe(
+        self, df: pd.DataFrame, service_name: str, params: QueryParams
+    ) -> List[StandardMetric]:
         """Extract StandardMetric objects from DataFrame"""
         metrics = []
 
@@ -220,10 +221,10 @@ class FileAdapter(DataSourceAdapter):
 
         try:
             # Check if data is in standard format (metric_name, value, timestamp columns)
-            if all(col in df.columns for col in ['metric_name', 'value', 'timestamp']):
+            if all(col in df.columns for col in ["metric_name", "value", "timestamp"]):
                 # Standard format
                 for _, row in df.iterrows():
-                    metric_type = self._infer_metric_type(row.get('metric_name', ''))
+                    metric_type = self._infer_metric_type(row.get("metric_name", ""))
 
                     # Filter by metric types if specified
                     if params.metric_types and metric_type not in params.metric_types:
@@ -235,14 +236,12 @@ class FileAdapter(DataSourceAdapter):
                         metric_id=metric_id,
                         metric_type=metric_type,
                         service_name=service_name,
-                        metric_name=row['metric_name'],
-                        value=float(row['value']),
-                        timestamp=row['timestamp'],
-                        unit=row.get('unit', ''),
-                        tags={
-                            "source_row": str(row.name)
-                        },
-                        raw_data=row.to_dict()
+                        metric_name=row["metric_name"],
+                        value=float(row["value"]),
+                        timestamp=row["timestamp"],
+                        unit=row.get("unit", ""),
+                        tags={"source_row": str(row.name)},
+                        raw_data=row.to_dict(),
                     )
 
                     metrics.append(standard_metric)
@@ -250,12 +249,12 @@ class FileAdapter(DataSourceAdapter):
             else:
                 # Wide format - each column is a metric
                 timestamp_col = None
-                for col in ['timestamp', 'time', 'datetime']:
+                for col in ["timestamp", "time", "datetime"]:
                     if col in df.columns:
                         timestamp_col = col
                         break
 
-                excluded_cols = [timestamp_col, 'service_name', 'service']
+                excluded_cols = [timestamp_col, "service_name", "service"]
                 metric_columns = [col for col in df.columns if col not in excluded_cols]
 
                 for _, row in df.iterrows():
@@ -281,11 +280,8 @@ class FileAdapter(DataSourceAdapter):
                             value=float(row[metric_col]),
                             timestamp=timestamp,
                             unit=self._infer_unit(metric_col),
-                            tags={
-                                "source_row": str(row.name),
-                                "source_column": metric_col
-                            },
-                            raw_data=row.to_dict()
+                            tags={"source_row": str(row.name), "source_column": metric_col},
+                            raw_data=row.to_dict(),
                         )
 
                         metrics.append(standard_metric)
@@ -299,21 +295,21 @@ class FileAdapter(DataSourceAdapter):
         """Infer metric type from metric name"""
         metric_name_lower = metric_name.lower()
 
-        if any(term in metric_name_lower for term in ['response_time', 'latency', 'duration']):
+        if any(term in metric_name_lower for term in ["response_time", "latency", "duration"]):
             return MetricType.RESPONSE_TIME
-        elif any(term in metric_name_lower for term in ['error_rate', 'error', 'failure']):
+        elif any(term in metric_name_lower for term in ["error_rate", "error", "failure"]):
             return MetricType.ERROR_RATE
-        elif any(term in metric_name_lower for term in ['throughput', 'requests', 'rps', 'qps']):
+        elif any(term in metric_name_lower for term in ["throughput", "requests", "rps", "qps"]):
             return MetricType.THROUGHPUT
-        elif any(term in metric_name_lower for term in ['cpu', 'processor']):
+        elif any(term in metric_name_lower for term in ["cpu", "processor"]):
             return MetricType.CPU_UTILIZATION
-        elif any(term in metric_name_lower for term in ['memory', 'ram']):
+        elif any(term in metric_name_lower for term in ["memory", "ram"]):
             return MetricType.MEMORY_UTILIZATION
-        elif any(term in metric_name_lower for term in ['disk', 'storage']):
+        elif any(term in metric_name_lower for term in ["disk", "storage"]):
             return MetricType.DISK_UTILIZATION
-        elif any(term in metric_name_lower for term in ['network', 'io', 'bandwidth']):
+        elif any(term in metric_name_lower for term in ["network", "io", "bandwidth"]):
             return MetricType.NETWORK_IO
-        elif any(term in metric_name_lower for term in ['availability', 'uptime', 'up']):
+        elif any(term in metric_name_lower for term in ["availability", "uptime", "up"]):
             return MetricType.AVAILABILITY
         else:
             return MetricType.CUSTOM
@@ -322,16 +318,16 @@ class FileAdapter(DataSourceAdapter):
         """Infer unit from metric name"""
         metric_name_lower = metric_name.lower()
 
-        if any(term in metric_name_lower for term in ['percent', '%', 'rate']):
-            return '%'
-        elif any(term in metric_name_lower for term in ['time', 'latency', 'duration']):
-            return 'ms'
-        elif any(term in metric_name_lower for term in ['bytes', 'memory', 'disk']):
-            return 'bytes'
-        elif any(term in metric_name_lower for term in ['requests', 'calls']):
-            return 'count'
+        if any(term in metric_name_lower for term in ["percent", "%", "rate"]):
+            return "%"
+        elif any(term in metric_name_lower for term in ["time", "latency", "duration"]):
+            return "ms"
+        elif any(term in metric_name_lower for term in ["bytes", "memory", "disk"]):
+            return "bytes"
+        elif any(term in metric_name_lower for term in ["requests", "calls"]):
+            return "count"
         else:
-            return ''
+            return ""
 
     def get_health_status(self) -> Dict[str, Any]:
         """Get health status of file data source"""
@@ -346,7 +342,7 @@ class FileAdapter(DataSourceAdapter):
                     "size_bytes": file_path.stat().st_size,
                     "modified": datetime.fromtimestamp(file_path.stat().st_mtime).isoformat(),
                     "rows": len(self.data_cache) if self.data_cache is not None else 0,
-                    "columns": list(self.data_cache.columns) if self.data_cache is not None else []
+                    "columns": list(self.data_cache.columns) if self.data_cache is not None else [],
                 }
 
             return {
@@ -357,12 +353,12 @@ class FileAdapter(DataSourceAdapter):
                 "available_services": len(services),
                 "services": services[:5],  # Show first 5 services
                 "file_info": file_info,
-                "last_checked": datetime.now().isoformat()
+                "last_checked": datetime.now().isoformat(),
             }
         except Exception as e:
             return {
                 "status": "error",
                 "connected": False,
                 "error": str(e),
-                "last_checked": datetime.now().isoformat()
+                "last_checked": datetime.now().isoformat(),
             }

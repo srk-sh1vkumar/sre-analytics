@@ -5,27 +5,30 @@ This module contains TypedDict definitions for complex data structures
 used throughout the application for better type safety.
 """
 
-from typing import TypedDict, Optional, List, Dict, Any, Union
 from datetime import datetime
-
+from typing import Any, Dict, List, Optional, TypedDict, Union
 
 # ============================================================================
 # Configuration Types
 # ============================================================================
 
+
 class ControllerConfig(TypedDict):
     """AppDynamics controller configuration"""
+
     host: str
     port: Optional[int]
 
 
 class ApplicationsConfig(TypedDict, total=False):
     """Applications configuration"""
+
     primary_app: str
 
 
 class AppDynamicsConfigDict(TypedDict):
     """Complete AppDynamics configuration dictionary"""
+
     controller: ControllerConfig
     applications: ApplicationsConfig
 
@@ -34,8 +37,10 @@ class AppDynamicsConfigDict(TypedDict):
 # Metric Types
 # ============================================================================
 
+
 class MetricDict(TypedDict):
     """Basic metric data dictionary"""
+
     metric_name: str
     metric_path: str
     value: float
@@ -47,6 +52,7 @@ class MetricDict(TypedDict):
 
 class SLOMetricDict(TypedDict):
     """SLO metric data dictionary"""
+
     service_name: str
     metric_name: str
     current_value: float
@@ -62,6 +68,7 @@ class SLOMetricDict(TypedDict):
 
 class MetricsSummary(TypedDict):
     """Metrics summary statistics"""
+
     total_services: int
     total_metrics: int
     compliant_count: int
@@ -76,8 +83,10 @@ class MetricsSummary(TypedDict):
 # Incident Types
 # ============================================================================
 
+
 class IncidentDict(TypedDict):
     """Incident data dictionary"""
+
     incident_id: str
     title: str
     description: str
@@ -94,6 +103,7 @@ class IncidentDict(TypedDict):
 
 class PerformanceSnapshotDict(TypedDict):
     """Performance snapshot dictionary"""
+
     service_name: str
     timestamp: datetime
     metrics: Dict[str, float]
@@ -105,8 +115,10 @@ class PerformanceSnapshotDict(TypedDict):
 # Business Transaction Types
 # ============================================================================
 
+
 class BusinessTransactionDict(TypedDict):
     """Business transaction metrics dictionary"""
+
     name: str
     tier: str
     calls_per_minute: float
@@ -121,8 +133,10 @@ class BusinessTransactionDict(TypedDict):
 # API Response Types
 # ============================================================================
 
+
 class OAuthTokenDict(TypedDict):
     """OAuth token response dictionary"""
+
     access_token: str
     token_type: str
     expires_in: int
@@ -131,6 +145,7 @@ class OAuthTokenDict(TypedDict):
 
 class APIErrorResponse(TypedDict):
     """API error response dictionary"""
+
     error: str
     message: Optional[str]
     status_code: int
@@ -138,6 +153,7 @@ class APIErrorResponse(TypedDict):
 
 class APISuccessResponse(TypedDict):
     """Generic API success response"""
+
     success: bool
     data: Dict[str, Any]
     message: Optional[str]
@@ -147,8 +163,10 @@ class APISuccessResponse(TypedDict):
 # Application Health Types
 # ============================================================================
 
+
 class ApplicationHealthDict(TypedDict):
     """Application health metrics dictionary"""
+
     availability_percentage: float
     total_calls: int
     errors_per_minute: float
@@ -160,8 +178,10 @@ class ApplicationHealthDict(TypedDict):
 # Report Types
 # ============================================================================
 
+
 class ReportTemplateData(TypedDict):
     """Report template data dictionary"""
+
     app_name: str
     report_date: str
     report_time: str
@@ -175,6 +195,7 @@ class ReportTemplateData(TypedDict):
 
 class ChartDataDict(TypedDict):
     """Chart data dictionary"""
+
     labels: List[str]
     values: List[float]
     colors: List[str]
@@ -186,8 +207,10 @@ class ChartDataDict(TypedDict):
 # Collector Types
 # ============================================================================
 
+
 class CollectorMetricsDict(TypedDict):
     """Complete metrics collection result"""
+
     application_name: str
     collection_time: datetime
     business_transactions: List[BusinessTransactionDict]
@@ -198,6 +221,7 @@ class CollectorMetricsDict(TypedDict):
 
 class ConnectionTestResults(TypedDict):
     """Connection test results dictionary"""
+
     controller_reachable: bool
     oauth_authentication: bool
     applications_access: bool
@@ -207,6 +231,7 @@ class ConnectionTestResults(TypedDict):
 
 class DiagnosisResults(TypedDict):
     """Diagnosis results dictionary"""
+
     controller_reachable: bool
     oauth_endpoint_available: bool
     credentials_valid: bool
@@ -219,8 +244,10 @@ class DiagnosisResults(TypedDict):
 # PDF Generation Types
 # ============================================================================
 
+
 class PDFGenerationOptions(TypedDict, total=False):
     """PDF generation options"""
+
     output_path: str
     use_browser: bool
     page_size: str
@@ -231,6 +258,7 @@ class PDFGenerationOptions(TypedDict, total=False):
 
 class PDFMetadata(TypedDict):
     """PDF document metadata"""
+
     title: str
     author: str
     subject: str
@@ -242,8 +270,10 @@ class PDFMetadata(TypedDict):
 # LLM Types
 # ============================================================================
 
+
 class LLMRequestDict(TypedDict):
     """LLM request parameters"""
+
     prompt: str
     model: str
     max_tokens: int
@@ -253,6 +283,7 @@ class LLMRequestDict(TypedDict):
 
 class LLMResponseDict(TypedDict):
     """LLM response dictionary"""
+
     content: str
     model: str
     tokens_used: int
@@ -264,8 +295,10 @@ class LLMResponseDict(TypedDict):
 # Error Context Types
 # ============================================================================
 
+
 class ErrorContextDict(TypedDict, total=False):
     """Error context dictionary"""
+
     operation: str
     service: str
     endpoint: str
@@ -279,8 +312,10 @@ class ErrorContextDict(TypedDict, total=False):
 # Monitoring Types
 # ============================================================================
 
+
 class AlertCondition(TypedDict):
     """Alert condition definition"""
+
     metric_name: str
     threshold: float
     operator: str  # '>', '<', '>=', '<=', '=='
@@ -290,6 +325,7 @@ class AlertCondition(TypedDict):
 
 class MonitoringRule(TypedDict):
     """Monitoring rule definition"""
+
     rule_id: str
     name: str
     description: str

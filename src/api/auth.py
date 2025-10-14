@@ -6,14 +6,15 @@ Provides API key-based authentication with role-based access control.
 
 import hashlib
 import secrets
-from datetime import datetime
-from typing import Optional, Dict, List
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
+from typing import Dict, List, Optional
 
 
 class Role(Enum):
     """API access roles"""
+
     ADMIN = "admin"  # Full access
     WRITE = "write"  # Read + Write operations
     READ = "read"  # Read-only access
@@ -22,6 +23,7 @@ class Role(Enum):
 @dataclass
 class APIKey:
     """API Key data structure"""
+
     key_id: str
     key_hash: str
     name: str
@@ -50,7 +52,7 @@ class APIKeyManager:
         name: str,
         role: Role = Role.READ,
         rate_limit: int = 100,
-        metadata: Optional[Dict] = None
+        metadata: Optional[Dict] = None,
     ) -> tuple[str, APIKey]:
         """
         Generate a new API key
@@ -77,7 +79,7 @@ class APIKeyManager:
             created_at=datetime.now(),
             rate_limit=rate_limit,
             enabled=True,
-            metadata=metadata or {}
+            metadata=metadata or {},
         )
 
         self.keys[key_hash] = api_key
@@ -138,7 +140,7 @@ class APIKeyManager:
                 "last_used": key.last_used.isoformat() if key.last_used else None,
                 "rate_limit": key.rate_limit,
                 "enabled": key.enabled,
-                "metadata": key.metadata
+                "metadata": key.metadata,
             }
             for key in self.keys.values()
         ]
@@ -193,10 +195,7 @@ class RateLimiter:
             self.requests[key_hash] = []
 
         # Remove old requests outside window
-        self.requests[key_hash] = [
-            ts for ts in self.requests[key_hash]
-            if ts > window_start
-        ]
+        self.requests[key_hash] = [ts for ts in self.requests[key_hash] if ts > window_start]
 
         current_count = len(self.requests[key_hash])
         limit = api_key.rate_limit
@@ -206,7 +205,7 @@ class RateLimiter:
                 "allowed": False,
                 "limit": limit,
                 "current": current_count,
-                "reset_in": int(self.requests[key_hash][0] + 60 - now)
+                "reset_in": int(self.requests[key_hash][0] + 60 - now),
             }
 
         # Add current request
@@ -216,7 +215,7 @@ class RateLimiter:
             "allowed": True,
             "limit": limit,
             "remaining": limit - current_count - 1,
-            "reset_in": 60
+            "reset_in": 60,
         }
 
     def get_rate_limit_info(self, api_key: APIKey) -> Dict:
@@ -234,17 +233,10 @@ class RateLimiter:
         window_start = now - 60
 
         if key_hash not in self.requests:
-            return {
-                "limit": api_key.rate_limit,
-                "remaining": api_key.rate_limit,
-                "reset_in": 60
-            }
+            return {"limit": api_key.rate_limit, "remaining": api_key.rate_limit, "reset_in": 60}
 
         # Count requests in current window
-        recent_requests = [
-            ts for ts in self.requests[key_hash]
-            if ts > window_start
-        ]
+        recent_requests = [ts for ts in self.requests[key_hash] if ts > window_start]
 
         current_count = len(recent_requests)
         remaining = max(0, api_key.rate_limit - current_count)
@@ -253,11 +245,7 @@ class RateLimiter:
         if recent_requests:
             reset_in = int(recent_requests[0] + 60 - now)
 
-        return {
-            "limit": api_key.rate_limit,
-            "remaining": remaining,
-            "reset_in": reset_in
-        }
+        return {"limit": api_key.rate_limit, "remaining": remaining, "reset_in": reset_in}
 
 
 # Global instances (in production, use dependency injection)
@@ -276,10 +264,6 @@ def has_permission(api_key: APIKey, required_role: Role) -> bool:
     Returns:
         True if has permission, False otherwise
     """
-    role_hierarchy = {
-        Role.READ: 1,
-        Role.WRITE: 2,
-        Role.ADMIN: 3
-    }
+    role_hierarchy = {Role.READ: 1, Role.WRITE: 2, Role.ADMIN: 3}
 
     return role_hierarchy[api_key.role] >= role_hierarchy[required_role]

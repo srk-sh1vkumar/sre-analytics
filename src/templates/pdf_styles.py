@@ -5,6 +5,7 @@ Centralized CSS styles for PDF report generation
 
 from typing import Dict
 
+
 class PDFStyles:
     """Centralized PDF styling configuration"""
 
@@ -18,16 +19,16 @@ class PDFStyles:
 
     # Colors
     COLORS = {
-        'primary': '#667eea',
-        'secondary': '#1e40af',
-        'success': '#10b981',
-        'warning': '#f59e0b',
-        'danger': '#ef4444',
-        'info': '#3b82f6',
-        'text_dark': '#1f2937',
-        'text_muted': '#64748b',
-        'border': '#e2e8f0',
-        'background': '#f8fafc',
+        "primary": "#667eea",
+        "secondary": "#1e40af",
+        "success": "#10b981",
+        "warning": "#f59e0b",
+        "danger": "#ef4444",
+        "info": "#3b82f6",
+        "text_dark": "#1f2937",
+        "text_muted": "#64748b",
+        "border": "#e2e8f0",
+        "background": "#f8fafc",
     }
 
     @staticmethod
@@ -597,14 +598,14 @@ class PDFStyles:
     def get_complete_pdf_css(cls) -> str:
         """Get complete CSS for PDF generation"""
         return (
-            cls.get_base_css() +
-            cls.get_theme_overrides() +
-            cls.get_tailwind_overrides() +
-            cls.get_component_styles() +
-            cls.get_card_styles() +
-            cls.get_table_styles() +
-            cls.get_incident_styles() +
-            cls.get_recommendation_styles() +
-            cls.get_status_styles() +
-            cls.get_utility_styles()
+            cls.get_base_css()
+            + cls.get_theme_overrides()
+            + cls.get_tailwind_overrides()
+            + cls.get_component_styles()
+            + cls.get_card_styles()
+            + cls.get_table_styles()
+            + cls.get_incident_styles()
+            + cls.get_recommendation_styles()
+            + cls.get_status_styles()
+            + cls.get_utility_styles()
         )

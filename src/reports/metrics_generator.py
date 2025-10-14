@@ -8,24 +8,25 @@ import logging
 import random
 from datetime import datetime
 from typing import List
+
 import numpy as np
 
 from src.config.constants import (
-    DEFAULT_TREND_DAYS,
     AVAILABILITY_MAX,
-    LATENCY_P95_TARGET_MS,
-    LATENCY_P95_CRITICAL_MS,
-    ERROR_RATE_TARGET,
+    COMPLIANCE_THRESHOLD_COMPLIANT,
+    DEFAULT_TREND_DAYS,
     ERROR_RATE_CRITICAL,
+    ERROR_RATE_TARGET,
+    LATENCY_P95_CRITICAL_MS,
+    LATENCY_P95_TARGET_MS,
     METRIC_AVAILABILITY,
-    METRIC_LATENCY_P95,
     METRIC_ERROR_RATE,
-    UNIT_PERCENTAGE,
-    UNIT_MILLISECONDS,
-    STATUS_COMPLIANT,
+    METRIC_LATENCY_P95,
     STATUS_AT_RISK,
     STATUS_BREACHED,
-    COMPLIANCE_THRESHOLD_COMPLIANT
+    STATUS_COMPLIANT,
+    UNIT_MILLISECONDS,
+    UNIT_PERCENTAGE,
 )
 from src.reports.llm_analyzer import SLOMetric
 
@@ -37,7 +38,9 @@ class MetricsGenerator:
         """Initialize metrics generator"""
         self.logger = logging.getLogger(__name__)
 
-    def generate_metrics_with_trends(self, services: List[str], days_back: int = DEFAULT_TREND_DAYS) -> List[SLOMetric]:
+    def generate_metrics_with_trends(
+        self, services: List[str], days_back: int = DEFAULT_TREND_DAYS
+    ) -> List[SLOMetric]:
         """
         Generate comprehensive SLO metrics with trend data
 
@@ -69,12 +72,14 @@ class MetricsGenerator:
                 timestamp=current_time,
                 unit=UNIT_PERCENTAGE,
                 description=f"Service availability for {service_name}",
-                trend_data=availability_trend
+                trend_data=availability_trend,
             )
             metrics.append(availability_metric)
 
             # Latency metric
-            latency_trend = self._generate_trend_data(LATENCY_P95_TARGET_MS, 30, trend_days, min_val=50)
+            latency_trend = self._generate_trend_data(
+                LATENCY_P95_TARGET_MS, 30, trend_days, min_val=50
+            )
             current_latency = latency_trend[-1]
 
             latency_metric = SLOMetric(
@@ -83,12 +88,16 @@ class MetricsGenerator:
                 current_value=current_latency,
                 slo_target=LATENCY_P95_TARGET_MS,
                 sla_target=LATENCY_P95_CRITICAL_MS,
-                status=self._get_compliance_status(current_latency, LATENCY_P95_TARGET_MS, inverse=True),
-                error_budget_consumed=max(0, (current_latency - LATENCY_P95_TARGET_MS) / LATENCY_P95_TARGET_MS * 100),
+                status=self._get_compliance_status(
+                    current_latency, LATENCY_P95_TARGET_MS, inverse=True
+                ),
+                error_budget_consumed=max(
+                    0, (current_latency - LATENCY_P95_TARGET_MS) / LATENCY_P95_TARGET_MS * 100
+                ),
                 timestamp=current_time,
                 unit=UNIT_MILLISECONDS,
                 description=f"95th percentile response time for {service_name}",
-                trend_data=latency_trend
+                trend_data=latency_trend,
             )
             metrics.append(latency_metric)
 
@@ -102,18 +111,26 @@ class MetricsGenerator:
                 current_value=current_error_rate,
                 slo_target=ERROR_RATE_TARGET,
                 sla_target=ERROR_RATE_CRITICAL,
-                status=self._get_compliance_status(current_error_rate, ERROR_RATE_TARGET, inverse=True),
-                error_budget_consumed=max(0, (current_error_rate - ERROR_RATE_TARGET) / ERROR_RATE_TARGET * 100) if current_error_rate > ERROR_RATE_TARGET else 0,
+                status=self._get_compliance_status(
+                    current_error_rate, ERROR_RATE_TARGET, inverse=True
+                ),
+                error_budget_consumed=(
+                    max(0, (current_error_rate - ERROR_RATE_TARGET) / ERROR_RATE_TARGET * 100)
+                    if current_error_rate > ERROR_RATE_TARGET
+                    else 0
+                ),
                 timestamp=current_time,
                 unit=UNIT_PERCENTAGE,
                 description=f"Error rate for {service_name}",
-                trend_data=error_trend
+                trend_data=error_trend,
             )
             metrics.append(error_rate_metric)
 
         return metrics
 
-    def _generate_trend_data(self, mean: float, std: float, days: int, min_val: float = 0) -> List[float]:
+    def _generate_trend_data(
+        self, mean: float, std: float, days: int, min_val: float = 0
+    ) -> List[float]:
         """
         Generate realistic trend data with weekly patterns and random walk
 
@@ -196,12 +213,18 @@ class MetricsGenerator:
             health_status = "Healthy"
 
         return {
-            'total_metrics': total_metrics,
-            'total_services': len(services),
-            'compliant_count': compliant_count,
-            'at_risk_count': at_risk_count,
-            'breached_count': breached_count,
-            'compliance_percentage': (compliant_count / total_metrics * 100) if total_metrics > 0 else 0,
-            'health_status': health_status,
-            'avg_error_budget_consumed': sum(m.error_budget_consumed for m in metrics) / total_metrics if total_metrics > 0 else 0
+            "total_metrics": total_metrics,
+            "total_services": len(services),
+            "compliant_count": compliant_count,
+            "at_risk_count": at_risk_count,
+            "breached_count": breached_count,
+            "compliance_percentage": (
+                (compliant_count / total_metrics * 100) if total_metrics > 0 else 0
+            ),
+            "health_status": health_status,
+            "avg_error_budget_consumed": (
+                sum(m.error_budget_consumed for m in metrics) / total_metrics
+                if total_metrics > 0
+                else 0
+            ),
         }

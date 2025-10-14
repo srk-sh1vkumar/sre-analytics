@@ -6,12 +6,13 @@ Base interfaces for pluggable data source adapters
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Any, Optional, Union
 from enum import Enum
+from typing import Any, Dict, List, Optional, Union
 
 
 class MetricType(Enum):
     """Standard metric types across all data sources"""
+
     RESPONSE_TIME = "response_time"
     ERROR_RATE = "error_rate"
     THROUGHPUT = "throughput"
@@ -26,6 +27,7 @@ class MetricType(Enum):
 
 class DataSourceType(Enum):
     """Supported data source types"""
+
     APPDYNAMICS = "appdynamics"
     PROMETHEUS = "prometheus"
     GRAFANA = "grafana"
@@ -42,6 +44,7 @@ class DataSourceType(Enum):
 @dataclass
 class StandardMetric:
     """Standardized metric structure across all data sources"""
+
     metric_id: str
     metric_type: MetricType
     service_name: str
@@ -56,6 +59,7 @@ class StandardMetric:
 @dataclass
 class DataSourceConfig:
     """Generic configuration for data sources"""
+
     source_type: DataSourceType
     name: str
     connection_params: Dict[str, Any]
@@ -68,6 +72,7 @@ class DataSourceConfig:
 @dataclass
 class QueryParams:
     """Parameters for querying data sources"""
+
     start_time: datetime
     end_time: datetime
     services: List[str] = None
@@ -125,7 +130,7 @@ class DataSourceAdapter(ABC):
             "name": self.name,
             "type": self.source_type.value,
             "enabled": self.enabled,
-            "polling_interval": self.config.polling_interval
+            "polling_interval": self.config.polling_interval,
         }
 
 
@@ -168,14 +173,14 @@ class DataSourceRegistry:
                 status[name] = {
                     "enabled": adapter.is_enabled(),
                     "connected": adapter.test_connection(),
-                    "metadata": adapter.get_metadata()
+                    "metadata": adapter.get_metadata(),
                 }
             except Exception as e:
                 status[name] = {
                     "enabled": adapter.is_enabled(),
                     "connected": False,
                     "error": str(e),
-                    "metadata": adapter.get_metadata()
+                    "metadata": adapter.get_metadata(),
                 }
         return status
 
@@ -200,7 +205,9 @@ class MetricAggregator:
 
         return results
 
-    def merge_metrics(self, source_metrics: Dict[str, List[StandardMetric]]) -> List[StandardMetric]:
+    def merge_metrics(
+        self, source_metrics: Dict[str, List[StandardMetric]]
+    ) -> List[StandardMetric]:
         """Merge metrics from multiple sources, handling duplicates"""
         merged = []
         seen_metrics = set()

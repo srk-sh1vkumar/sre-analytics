@@ -5,15 +5,17 @@ Measures performance of key operations to ensure no regression after refactoring
 Establishes baselines for future performance optimization.
 """
 
-import pytest
-import time
-from datetime import datetime, timedelta
-from pathlib import Path
-import tempfile
 import shutil
 
 # Add src to path for imports
 import sys
+import tempfile
+import time
+from datetime import datetime, timedelta
+from pathlib import Path
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.reports.enhanced_sre_report_system import EnhancedSREReportSystem
@@ -50,10 +52,7 @@ class TestPerformanceBenchmarks:
         services = ["api", "db", "cache", "queue"]
 
         start = time.time()
-        metrics = system.generate_metrics_with_trends(
-            services=services,
-            days_back=30
-        )
+        metrics = system.generate_metrics_with_trends(services=services, days_back=30)
         duration = time.time() - start
 
         print(f"\n⏱️ Metrics Generation ({len(services)} services, 30 days): {duration:.3f}s")
@@ -65,15 +64,11 @@ class TestPerformanceBenchmarks:
 
     def test_chart_generation_time(self, system):
         """Benchmark: Chart visualization generation"""
-        metrics = system.generate_metrics_with_trends(
-            services=["api", "db"],
-            days_back=30
-        )
+        metrics = system.generate_metrics_with_trends(services=["api", "db"], days_back=30)
 
         start = time.time()
         charts = system.create_trend_visualizations(
-            metrics=metrics,
-            save_images=False  # Base64 encoding
+            metrics=metrics, save_images=False  # Base64 encoding
         )
         duration = time.time() - start
 
@@ -85,18 +80,12 @@ class TestPerformanceBenchmarks:
 
     def test_html_report_generation_time(self, system, temp_dir):
         """Benchmark: HTML report generation"""
-        metrics = system.generate_metrics_with_trends(
-            services=["api", "db"],
-            days_back=30
-        )
+        metrics = system.generate_metrics_with_trends(services=["api", "db"], days_back=30)
 
         output_path = str(Path(temp_dir) / "benchmark.html")
 
         start = time.time()
-        result = system.create_comprehensive_html_report(
-            metrics=metrics,
-            output_path=output_path
-        )
+        result = system.create_comprehensive_html_report(metrics=metrics, output_path=output_path)
         duration = time.time() - start
 
         print(f"\n⏱️ HTML Report Generation: {duration:.3f}s")
@@ -110,8 +99,7 @@ class TestPerformanceBenchmarks:
         """Benchmark: Full report suite generation"""
         start = time.time()
         results = system.generate_full_report_suite(
-            application_name="BenchmarkApp",
-            services=["api", "db", "cache"]
+            application_name="BenchmarkApp", services=["api", "db", "cache"]
         )
         duration = time.time() - start
 
@@ -133,9 +121,7 @@ class TestPerformanceBenchmarks:
 
         start = time.time()
         incident = system.generate_incident_report(
-            application_name="BenchmarkApp",
-            incident_time=incident_time,
-            duration_hours=1.0
+            application_name="BenchmarkApp", incident_time=incident_time, duration_hours=1.0
         )
         duration = time.time() - start
 
@@ -162,10 +148,7 @@ class TestPerformanceScalability:
             services = [f"service-{i}" for i in range(count)]
 
             start = time.time()
-            metrics = system.generate_metrics_with_trends(
-                services=services,
-                days_back=30
-            )
+            metrics = system.generate_metrics_with_trends(services=services, days_back=30)
             duration = time.time() - start
             timings.append(duration)
 
@@ -173,8 +156,8 @@ class TestPerformanceScalability:
 
         # Each doubling of services should take less than 3x time (sub-quadratic)
         for i in range(len(timings) - 1):
-            ratio = timings[i+1] / timings[i]
-            service_ratio = service_counts[i+1] / service_counts[i]
+            ratio = timings[i + 1] / timings[i]
+            service_ratio = service_counts[i + 1] / service_counts[i]
             print(f"   Scaling ratio: {ratio:.2f}x for {service_ratio:.1f}x services")
             assert ratio < (service_ratio * 1.5), "Performance degradation detected"
 
@@ -185,10 +168,7 @@ class TestPerformanceScalability:
 
         for days in day_ranges:
             start = time.time()
-            metrics = system.generate_metrics_with_trends(
-                services=["api", "db"],
-                days_back=days
-            )
+            metrics = system.generate_metrics_with_trends(services=["api", "db"], days_back=days)
             duration = time.time() - start
             timings.append(duration)
 
@@ -219,8 +199,7 @@ class TestPerformanceMemory:
         # Generate metrics multiple times
         for i in range(3):
             metrics = system.generate_metrics_with_trends(
-                services=["api", "db", "cache"],
-                days_back=30
+                services=["api", "db", "cache"], days_back=30
             )
             assert len(metrics) > 0
 
@@ -242,8 +221,7 @@ class TestPerformanceMemory:
             # Generate multiple reports
             for i in range(2):
                 results = system.generate_full_report_suite(
-                    application_name="MemoryApp",
-                    services=["api"]
+                    application_name="MemoryApp", services=["api"]
                 )
                 assert len(results) > 0
 
@@ -253,6 +231,7 @@ class TestPerformanceMemory:
 
         finally:
             import shutil
+
             shutil.rmtree(temp_dir, ignore_errors=True)
 
         # Test passed if no memory errors occurred
@@ -268,24 +247,19 @@ class TestPerformanceComparison:
 
     def test_compare_html_vs_json_generation(self, system, tmp_path):
         """Compare HTML vs JSON generation performance"""
-        metrics = system.generate_metrics_with_trends(
-            services=["api", "db"],
-            days_back=30
-        )
+        metrics = system.generate_metrics_with_trends(services=["api", "db"], days_back=30)
 
         # Time HTML generation
         start_html = time.time()
         html_path = system.create_comprehensive_html_report(
-            metrics=metrics,
-            output_path=str(tmp_path / "test.html")
+            metrics=metrics, output_path=str(tmp_path / "test.html")
         )
         html_time = time.time() - start_html
 
         # Time JSON export
         start_json = time.time()
         json_path = system.orchestrator.export_json_data(
-            metrics=metrics,
-            output_path=str(tmp_path / "test.json")
+            metrics=metrics, output_path=str(tmp_path / "test.json")
         )
         json_time = time.time() - start_json
 

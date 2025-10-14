@@ -9,6 +9,7 @@ import os
 import tempfile
 from pathlib import Path
 from typing import Optional
+
 import pyppeteer
 
 
@@ -34,25 +35,27 @@ class BrowserPDFGenerator:
             Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
             # Launch headless browser
-            browser = await pyppeteer.launch({
-                'headless': True,
-                'args': [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-gpu',
-                    '--no-first-run',
-                    '--disable-default-apps',
-                    '--disable-extensions'
-                ]
-            })
+            browser = await pyppeteer.launch(
+                {
+                    "headless": True,
+                    "args": [
+                        "--no-sandbox",
+                        "--disable-setuid-sandbox",
+                        "--disable-dev-shm-usage",
+                        "--disable-gpu",
+                        "--no-first-run",
+                        "--disable-default-apps",
+                        "--disable-extensions",
+                    ],
+                }
+            )
 
             try:
                 # Create new page
                 page = await browser.newPage()
 
                 # Set viewport for consistent rendering
-                await page.setViewport({'width': 1200, 'height': 800})
+                await page.setViewport({"width": 1200, "height": 800})
 
                 # Inject print-specific CSS for better page breaks
                 print_css = self._get_print_optimized_css()
@@ -66,16 +69,16 @@ class BrowserPDFGenerator:
 
                 # Generate PDF with print-optimized settings
                 pdf_options = {
-                    'path': output_path,
-                    'format': 'A4',
-                    'printBackground': True,
-                    'margin': {
-                        'top': '0.5in',
-                        'right': '0.5in',
-                        'bottom': '0.5in',
-                        'left': '0.5in'
+                    "path": output_path,
+                    "format": "A4",
+                    "printBackground": True,
+                    "margin": {
+                        "top": "0.5in",
+                        "right": "0.5in",
+                        "bottom": "0.5in",
+                        "left": "0.5in",
                     },
-                    'preferCSSPageSize': True
+                    "preferCSSPageSize": True,
                 }
 
                 await page.pdf(pdf_options)
@@ -127,16 +130,13 @@ class BrowserPDFGenerator:
         """
         if not output_path:
             html_path = Path(html_file_path)
-            output_path = html_path.with_suffix('.pdf')
+            output_path = html_path.with_suffix(".pdf")
 
         try:
-            with open(html_file_path, 'r', encoding='utf-8') as f:
+            with open(html_file_path, "r", encoding="utf-8") as f:
                 html_content = f.read()
 
-            success = await self.create_pdf_from_html_content(
-                html_content,
-                str(output_path)
-            )
+            success = await self.create_pdf_from_html_content(html_content, str(output_path))
 
             if success:
                 return str(output_path)
@@ -150,8 +150,9 @@ class BrowserPDFGenerator:
     def test_browser_installation(self) -> bool:
         """Test if browser is properly installed and configured"""
         try:
+
             async def test():
-                browser = await pyppeteer.launch({'headless': True})
+                browser = await pyppeteer.launch({"headless": True})
                 await browser.close()
                 return True
 

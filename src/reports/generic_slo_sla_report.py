@@ -4,32 +4,36 @@ Generates comprehensive Service Level Objective and Service Level Agreement comp
 for any application or system with intelligent error analysis and recommendations.
 """
 
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import yaml
-import json
-import os
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Tuple, Optional
-from pathlib import Path
-import logging
-from dataclasses import dataclass, asdict
-import plotly.graph_objects as go
-import plotly.express as px
-from plotly.subplots import make_subplots
 import base64
+import json
+import logging
+import os
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
 from io import BytesIO
-import jinja2
-import weasyprint
-from openai import OpenAI
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
 import anthropic
+import jinja2
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import seaborn as sns
+import weasyprint
+import yaml
+from openai import OpenAI
+from plotly.subplots import make_subplots
+
 from src.config.app_config import get_config
+
 
 @dataclass
 class SLOMetric:
     """SLO metric data structure"""
+
     service_name: str
     metric_name: str
     current_value: float
@@ -41,9 +45,11 @@ class SLOMetric:
     unit: str = ""
     description: str = ""
 
+
 @dataclass
 class ErrorAnalysis:
     """Error analysis data structure"""
+
     service_name: str
     error_type: str
     frequency: int
@@ -52,9 +58,11 @@ class ErrorAnalysis:
     impact: str
     llm_recommendation: str
 
+
 @dataclass
 class SLACompliance:
     """SLA compliance data structure"""
+
     service_name: str
     availability_percent: float
     avg_response_time: float
@@ -64,6 +72,7 @@ class SLACompliance:
     compliance_status: str
     penalties_applicable: bool
     credit_percentage: float
+
 
 class LLMAnalyzer:
     """LLM-powered error analysis and recommendations"""
@@ -86,10 +95,11 @@ class LLMAnalyzer:
                 if self.api_key:
                     self.client = anthropic.Anthropic(api_key=self.api_key)
 
-    def analyze_errors_and_recommend(self, metrics: List[SLOMetric],
-                                   error_patterns: List[Dict]) -> List[ErrorAnalysis]:
+    def analyze_errors_and_recommend(
+        self, metrics: List[SLOMetric], error_patterns: List[Dict]
+    ) -> List[ErrorAnalysis]:
         """Analyze errors using LLM and generate recommendations"""
-        if not hasattr(self, 'client'):
+        if not hasattr(self, "client"):
             self.logger.warning("No LLM client configured. Using fallback analysis.")
             return self._fallback_analysis(metrics, error_patterns)
 
@@ -105,8 +115,9 @@ class LLMAnalyzer:
             self.logger.error(f"LLM analysis failed: {e}")
             return self._fallback_analysis(metrics, error_patterns)
 
-    def _prepare_analysis_context(self, metrics: List[SLOMetric],
-                                error_patterns: List[Dict]) -> str:
+    def _prepare_analysis_context(
+        self, metrics: List[SLOMetric], error_patterns: List[Dict]
+    ) -> str:
         """Prepare context string for LLM analysis"""
         context = "System Performance Analysis\\n\\n"
         context += "=== SLO Metrics Status ===\\n"
@@ -127,11 +138,15 @@ class LLMAnalyzer:
         if error_patterns:
             context += "\\n=== Error Patterns ===\\n"
             for pattern in error_patterns:
-                context += f"- {pattern.get('type', 'Unknown')}: {pattern.get('count', 0)} occurrences\\n"
+                context += (
+                    f"- {pattern.get('type', 'Unknown')}: {pattern.get('count', 0)} occurrences\\n"
+                )
 
         return context
 
-    def _analyze_with_anthropic(self, context: str, metrics: List[SLOMetric]) -> List[ErrorAnalysis]:
+    def _analyze_with_anthropic(
+        self, context: str, metrics: List[SLOMetric]
+    ) -> List[ErrorAnalysis]:
         """Analyze using Anthropic Claude"""
         prompt = f"""
         As an experienced Site Reliability Engineer, analyze the following system performance data and provide actionable recommendations.
@@ -151,7 +166,7 @@ class LLMAnalyzer:
             response = self.client.messages.create(
                 model="claude-3-sonnet-20240229",
                 max_tokens=1000,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             analysis_text = response.content[0].text
@@ -178,9 +193,7 @@ class LLMAnalyzer:
 
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=1000
+                model="gpt-4", messages=[{"role": "user", "content": prompt}], max_tokens=1000
             )
 
             analysis_text = response.choices[0].message.content
@@ -189,7 +202,9 @@ class LLMAnalyzer:
             self.logger.error(f"OpenAI API error: {e}")
             return self._fallback_analysis(metrics, [])
 
-    def _parse_llm_response(self, response_text: str, metrics: List[SLOMetric]) -> List[ErrorAnalysis]:
+    def _parse_llm_response(
+        self, response_text: str, metrics: List[SLOMetric]
+    ) -> List[ErrorAnalysis]:
         """Parse LLM response into structured ErrorAnalysis objects"""
         error_analyses = []
 
@@ -206,36 +221,43 @@ class LLMAnalyzer:
                 impact=f"SLO breach affecting {metric.service_name}",
                 llm_recommendation=self._extract_recommendation_for_service(
                     response_text, metric.service_name, metric.metric_name
-                )
+                ),
             )
             error_analyses.append(error_analysis)
 
         return error_analyses
 
-    def _extract_recommendation_for_service(self, response_text: str,
-                                          service_name: str, metric_name: str) -> str:
+    def _extract_recommendation_for_service(
+        self, response_text: str, service_name: str, metric_name: str
+    ) -> str:
         """Extract specific recommendation for a service from LLM response"""
         # Simple extraction - in production, use more sophisticated parsing
-        lines = response_text.split('\\n')
+        lines = response_text.split("\\n")
         recommendation = f"Review {metric_name} performance for {service_name}. "
 
         # Look for relevant recommendations in the response
         for line in lines:
-            if any(keyword in line.lower() for keyword in [service_name.lower(), metric_name.lower(), 'recommend']):
+            if any(
+                keyword in line.lower()
+                for keyword in [service_name.lower(), metric_name.lower(), "recommend"]
+            ):
                 recommendation += line.strip() + " "
 
         if len(recommendation.strip()) < 50:  # Fallback if no specific recommendation found
             if metric_name == "availability":
                 recommendation = "Investigate service health checks, implement circuit breakers, and review deployment practices."
             elif metric_name == "latency_p95":
-                recommendation = "Optimize database queries, implement caching, and review resource allocation."
+                recommendation = (
+                    "Optimize database queries, implement caching, and review resource allocation."
+                )
             elif metric_name == "error_rate":
                 recommendation = "Review error logs, implement better error handling, and add monitoring for error patterns."
 
         return recommendation.strip()
 
-    def _fallback_analysis(self, metrics: List[SLOMetric],
-                          error_patterns: List[Dict]) -> List[ErrorAnalysis]:
+    def _fallback_analysis(
+        self, metrics: List[SLOMetric], error_patterns: List[Dict]
+    ) -> List[ErrorAnalysis]:
         """Fallback analysis when LLM is not available"""
         error_analyses = []
 
@@ -251,7 +273,7 @@ class LLMAnalyzer:
                 severity="High" if metric.status == "breached" else "Medium",
                 root_cause=f"Rule-based analysis: {metric.metric_name} threshold exceeded",
                 impact=f"SLO breach affecting {metric.service_name}",
-                llm_recommendation=recommendation
+                llm_recommendation=recommendation,
             )
             error_analyses.append(error_analysis)
 
@@ -263,10 +285,13 @@ class LLMAnalyzer:
             "availability": "1. Check service health endpoints 2. Review deployment logs 3. Implement circuit breakers 4. Scale resources if needed",
             "latency_p95": "1. Profile application performance 2. Optimize database queries 3. Implement caching 4. Review resource allocation",
             "latency_p99": "1. Identify performance outliers 2. Optimize slow operations 3. Implement request timeouts 4. Review system capacity",
-            "error_rate": "1. Analyze error logs 2. Implement better error handling 3. Add input validation 4. Review dependent services"
+            "error_rate": "1. Analyze error logs 2. Implement better error handling 3. Add input validation 4. Review dependent services",
         }
 
-        return recommendations.get(metric.metric_name, "Review service performance and implement monitoring improvements")
+        return recommendations.get(
+            metric.metric_name, "Review service performance and implement monitoring improvements"
+        )
+
 
 class GenericSLOSLAReportGenerator:
     """Generic SLO/SLA report generator for any application"""
@@ -285,14 +310,14 @@ class GenericSLOSLAReportGenerator:
 
         # Set up Jinja2 for HTML templating
         self.jinja_env = jinja2.Environment(
-            loader=jinja2.FileSystemLoader('templates'),
-            autoescape=jinja2.select_autoescape(['html', 'xml'])
+            loader=jinja2.FileSystemLoader("templates"),
+            autoescape=jinja2.select_autoescape(["html", "xml"]),
         )
 
     def _load_yaml(self, filename: str) -> Dict[str, Any]:
         """Load YAML configuration file"""
         try:
-            with open(self.config_dir / filename, 'r') as file:
+            with open(self.config_dir / filename, "r") as file:
                 return yaml.safe_load(file)
         except Exception as e:
             self.logger.warning(f"Could not load {filename}: {e}")
@@ -307,7 +332,7 @@ class GenericSLOSLAReportGenerator:
                         "service_name": "default-service",
                         "availability_slo": "99.9%",
                         "latency_p95_slo": "200ms",
-                        "error_rate_slo": "0.1%"
+                        "error_rate_slo": "0.1%",
                     }
                 }
             }
@@ -316,13 +341,15 @@ class GenericSLOSLAReportGenerator:
                 "service_level_agreements": {
                     "production": {
                         "external_availability": "99.9%",
-                        "api_response_time_sla": "500ms"
+                        "api_response_time_sla": "500ms",
                     }
                 }
             }
         return {}
 
-    def generate_demo_metrics(self, services: List[str] = None, days_back: int = 30) -> List[SLOMetric]:
+    def generate_demo_metrics(
+        self, services: List[str] = None, days_back: int = 30
+    ) -> List[SLOMetric]:
         """Generate realistic demo metrics for any application"""
         if not services:
             services = ["web-service", "api-service", "database-service", "auth-service"]
@@ -346,7 +373,7 @@ class GenericSLOSLAReportGenerator:
                 error_budget_consumed=max(0, (99.9 - current_availability) / 0.1 * 100),
                 timestamp=current_time,
                 unit="%",
-                description=f"Service availability for {service_name}"
+                description=f"Service availability for {service_name}",
             )
             metrics.append(availability_metric)
 
@@ -364,7 +391,7 @@ class GenericSLOSLAReportGenerator:
                 error_budget_consumed=max(0, (current_latency - 200) / 200 * 100),
                 timestamp=current_time,
                 unit="ms",
-                description=f"95th percentile response time for {service_name}"
+                description=f"95th percentile response time for {service_name}",
             )
             metrics.append(latency_metric)
 
@@ -379,10 +406,14 @@ class GenericSLOSLAReportGenerator:
                 slo_target=0.1,
                 sla_target=1.0,
                 status=self._get_compliance_status(current_error_rate, 0.1, inverse=True),
-                error_budget_consumed=max(0, (current_error_rate - 0.1) / 0.1 * 100) if current_error_rate > 0.1 else 0,
+                error_budget_consumed=(
+                    max(0, (current_error_rate - 0.1) / 0.1 * 100)
+                    if current_error_rate > 0.1
+                    else 0
+                ),
                 timestamp=current_time,
                 unit="%",
-                description=f"Error rate for {service_name}"
+                description=f"Error rate for {service_name}",
             )
             metrics.append(error_rate_metric)
 
@@ -405,9 +436,9 @@ class GenericSLOSLAReportGenerator:
             else:
                 return "breached"
 
-    def create_html_report(self, metrics: List[SLOMetric],
-                          error_analyses: List[ErrorAnalysis],
-                          output_path: str = None) -> str:
+    def create_html_report(
+        self, metrics: List[SLOMetric], error_analyses: List[ErrorAnalysis], output_path: str = None
+    ) -> str:
         """Generate comprehensive HTML report"""
         if not output_path:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -418,14 +449,14 @@ class GenericSLOSLAReportGenerator:
 
         # Prepare template data
         template_data = {
-            'app_name': self.app_name,
-            'report_date': datetime.now().strftime("%B %d, %Y"),
-            'report_time': datetime.now().strftime("%H:%M:%S UTC"),
-            'metrics': metrics,
-            'error_analyses': error_analyses,
-            'charts': charts,
-            'summary': self._create_summary_stats(metrics),
-            'recommendations': self._create_prioritized_recommendations(error_analyses)
+            "app_name": self.app_name,
+            "report_date": datetime.now().strftime("%B %d, %Y"),
+            "report_time": datetime.now().strftime("%H:%M:%S UTC"),
+            "metrics": metrics,
+            "error_analyses": error_analyses,
+            "charts": charts,
+            "summary": self._create_summary_stats(metrics),
+            "recommendations": self._create_prioritized_recommendations(error_analyses),
         }
 
         # Create HTML template
@@ -435,7 +466,7 @@ class GenericSLOSLAReportGenerator:
 
         # Save HTML file
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, 'w', encoding='utf-8') as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             f.write(html_content)
 
         self.logger.info(f"HTML report saved to {output_path}")
@@ -444,11 +475,11 @@ class GenericSLOSLAReportGenerator:
     def create_pdf_report(self, html_path: str, output_path: str = None) -> str:
         """Convert HTML report to PDF"""
         if not output_path:
-            output_path = html_path.replace('.html', '.pdf')
+            output_path = html_path.replace(".html", ".pdf")
 
         try:
             # Read HTML content
-            with open(html_path, 'r', encoding='utf-8') as f:
+            with open(html_path, "r", encoding="utf-8") as f:
                 html_content = f.read()
 
             # Convert to PDF using WeasyPrint
@@ -463,10 +494,10 @@ class GenericSLOSLAReportGenerator:
     def _create_simple_pdf_report(self, output_path: str) -> str:
         """Create a simple PDF report as fallback"""
         try:
-            from reportlab.lib.pagesizes import letter, A4
-            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.pagesizes import A4, letter
+            from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
             from reportlab.lib.units import inch
+            from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
             doc = SimpleDocTemplate(output_path, pagesize=A4)
             styles = getSampleStyleSheet()
@@ -474,8 +505,8 @@ class GenericSLOSLAReportGenerator:
 
             # Title
             title_style = ParagraphStyle(
-                'CustomTitle',
-                parent=styles['Heading1'],
+                "CustomTitle",
+                parent=styles["Heading1"],
                 fontSize=18,
                 spaceAfter=30,
             )
@@ -483,13 +514,27 @@ class GenericSLOSLAReportGenerator:
             story.append(Spacer(1, 12))
 
             # Date
-            story.append(Paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
+            story.append(
+                Paragraph(
+                    f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles["Normal"]
+                )
+            )
             story.append(Spacer(1, 20))
 
             # Content
-            story.append(Paragraph("Report Summary", styles['Heading2']))
-            story.append(Paragraph("This is a simplified PDF version of the SLO/SLA compliance report.", styles['Normal']))
-            story.append(Paragraph("For full interactive features and detailed analysis, please refer to the HTML version.", styles['Normal']))
+            story.append(Paragraph("Report Summary", styles["Heading2"]))
+            story.append(
+                Paragraph(
+                    "This is a simplified PDF version of the SLO/SLA compliance report.",
+                    styles["Normal"],
+                )
+            )
+            story.append(
+                Paragraph(
+                    "For full interactive features and detailed analysis, please refer to the HTML version.",
+                    styles["Normal"],
+                )
+            )
 
             doc.build(story)
             self.logger.info(f"Simple PDF report saved to {output_path}")
@@ -510,18 +555,20 @@ class GenericSLOSLAReportGenerator:
             values = [m.current_value for m in availability_metrics]
             targets = [m.slo_target for m in availability_metrics]
 
-            colors = ['green' if m.status == 'compliant' else 'orange' if m.status == 'at_risk' else 'red'
-                     for m in availability_metrics]
+            colors = [
+                "green" if m.status == "compliant" else "orange" if m.status == "at_risk" else "red"
+                for m in availability_metrics
+            ]
 
-            ax.bar(services, values, color=colors, alpha=0.7, label='Current')
-            ax.plot(services, targets, 'bo-', label='SLO Target')
-            ax.set_ylabel('Availability (%)')
-            ax.set_title('Service Availability Status')
+            ax.bar(services, values, color=colors, alpha=0.7, label="Current")
+            ax.plot(services, targets, "bo-", label="SLO Target")
+            ax.set_ylabel("Availability (%)")
+            ax.set_title("Service Availability Status")
             ax.legend()
             plt.xticks(rotation=45)
             plt.tight_layout()
 
-            charts['availability'] = self._fig_to_base64(fig)
+            charts["availability"] = self._fig_to_base64(fig)
             plt.close(fig)
 
         # Response time chart
@@ -532,18 +579,20 @@ class GenericSLOSLAReportGenerator:
             values = [m.current_value for m in latency_metrics]
             targets = [m.slo_target for m in latency_metrics]
 
-            colors = ['green' if m.status == 'compliant' else 'orange' if m.status == 'at_risk' else 'red'
-                     for m in latency_metrics]
+            colors = [
+                "green" if m.status == "compliant" else "orange" if m.status == "at_risk" else "red"
+                for m in latency_metrics
+            ]
 
-            ax.bar(services, values, color=colors, alpha=0.7, label='Current')
-            ax.plot(services, targets, 'bo-', label='SLO Target')
-            ax.set_ylabel('Response Time (ms)')
-            ax.set_title('Service Response Time Status')
+            ax.bar(services, values, color=colors, alpha=0.7, label="Current")
+            ax.plot(services, targets, "bo-", label="SLO Target")
+            ax.set_ylabel("Response Time (ms)")
+            ax.set_title("Service Response Time Status")
             ax.legend()
             plt.xticks(rotation=45)
             plt.tight_layout()
 
-            charts['latency'] = self._fig_to_base64(fig)
+            charts["latency"] = self._fig_to_base64(fig)
             plt.close(fig)
 
         return charts
@@ -551,7 +600,7 @@ class GenericSLOSLAReportGenerator:
     def _fig_to_base64(self, fig) -> str:
         """Convert matplotlib figure to base64 string"""
         buffer = BytesIO()
-        fig.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
+        fig.savefig(buffer, format="png", dpi=150, bbox_inches="tight")
         buffer.seek(0)
         image_base64 = base64.b64encode(buffer.getvalue()).decode()
         buffer.close()
@@ -565,40 +614,43 @@ class GenericSLOSLAReportGenerator:
         breached_count = len([m for m in metrics if m.status == "breached"])
 
         return {
-            'total_services': total_services,
-            'total_metrics': len(metrics),
-            'compliant_count': compliant_count,
-            'at_risk_count': at_risk_count,
-            'breached_count': breached_count,
-            'compliance_percentage': (compliant_count / len(metrics) * 100) if metrics else 0,
-            'health_status': 'Healthy' if breached_count == 0 else 'Needs Attention'
+            "total_services": total_services,
+            "total_metrics": len(metrics),
+            "compliant_count": compliant_count,
+            "at_risk_count": at_risk_count,
+            "breached_count": breached_count,
+            "compliance_percentage": (compliant_count / len(metrics) * 100) if metrics else 0,
+            "health_status": "Healthy" if breached_count == 0 else "Needs Attention",
         }
 
-    def _create_prioritized_recommendations(self, error_analyses: List[ErrorAnalysis]) -> List[Dict[str, Any]]:
+    def _create_prioritized_recommendations(
+        self, error_analyses: List[ErrorAnalysis]
+    ) -> List[Dict[str, Any]]:
         """Create prioritized list of recommendations"""
         recommendations = []
 
         # Sort by severity
-        severity_order = {'Critical': 0, 'High': 1, 'Medium': 2, 'Low': 3}
-        sorted_analyses = sorted(error_analyses,
-                               key=lambda x: severity_order.get(x.severity, 99))
+        severity_order = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3}
+        sorted_analyses = sorted(error_analyses, key=lambda x: severity_order.get(x.severity, 99))
 
         for i, analysis in enumerate(sorted_analyses, 1):
-            recommendations.append({
-                'priority': i,
-                'service': analysis.service_name,
-                'severity': analysis.severity,
-                'issue': analysis.error_type.replace('_', ' ').title(),
-                'root_cause': analysis.root_cause,
-                'recommendation': analysis.llm_recommendation,
-                'impact': analysis.impact
-            })
+            recommendations.append(
+                {
+                    "priority": i,
+                    "service": analysis.service_name,
+                    "severity": analysis.severity,
+                    "issue": analysis.error_type.replace("_", " ").title(),
+                    "root_cause": analysis.root_cause,
+                    "recommendation": analysis.llm_recommendation,
+                    "impact": analysis.impact,
+                }
+            )
 
         return recommendations
 
     def _get_html_template(self) -> str:
         """Return HTML template for the report"""
-        return '''
+        return """
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -863,11 +915,11 @@ class GenericSLOSLAReportGenerator:
     </div>
 </body>
 </html>
-        '''
+        """
 
-    def generate_comprehensive_report(self, services: List[str] = None,
-                                    days_back: int = 30,
-                                    include_llm_analysis: bool = True) -> Dict[str, str]:
+    def generate_comprehensive_report(
+        self, services: List[str] = None, days_back: int = 30, include_llm_analysis: bool = True
+    ) -> Dict[str, str]:
         """Generate complete SLO/SLA report with all formats"""
         self.logger.info(f"Starting comprehensive SLO/SLA report generation for {self.app_name}")
 
@@ -878,8 +930,12 @@ class GenericSLOSLAReportGenerator:
         error_analyses = []
         if include_llm_analysis:
             try:
-                error_patterns = []  # In production, this would come from your error tracking system
-                error_analyses = self.llm_analyzer.analyze_errors_and_recommend(metrics, error_patterns)
+                error_patterns = (
+                    []
+                )  # In production, this would come from your error tracking system
+                error_analyses = self.llm_analyzer.analyze_errors_and_recommend(
+                    metrics, error_patterns
+                )
             except Exception as e:
                 self.logger.warning(f"LLM analysis failed, using fallback: {e}")
                 error_analyses = self.llm_analyzer._fallback_analysis(metrics, [])
@@ -889,22 +945,23 @@ class GenericSLOSLAReportGenerator:
 
         # HTML Report
         html_path = self.create_html_report(metrics, error_analyses)
-        results['html_report'] = html_path
+        results["html_report"] = html_path
 
         # PDF Report
         pdf_path = self.create_pdf_report(html_path)
         if pdf_path:
-            results['pdf_report'] = pdf_path
+            results["pdf_report"] = pdf_path
 
         # JSON Data Export
         json_path = self._export_json_data(metrics, error_analyses)
-        results['json_data'] = json_path
+        results["json_data"] = json_path
 
         self.logger.info("Comprehensive SLO/SLA report generation completed")
         return results
 
-    def _export_json_data(self, metrics: List[SLOMetric],
-                         error_analyses: List[ErrorAnalysis]) -> str:
+    def _export_json_data(
+        self, metrics: List[SLOMetric], error_analyses: List[ErrorAnalysis]
+    ) -> str:
         """Export all data as JSON"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_path = f"reports/generated/slo_sla_data_{timestamp}.json"
@@ -914,11 +971,11 @@ class GenericSLOSLAReportGenerator:
                 "application_name": self.app_name,
                 "generated_at": datetime.now().isoformat(),
                 "report_type": "SLO/SLA Compliance Report",
-                "data_period_days": 30
+                "data_period_days": 30,
             },
             "slo_metrics": [asdict(m) for m in metrics],
             "error_analyses": [asdict(e) for e in error_analyses],
-            "summary": self._create_summary_stats(metrics)
+            "summary": self._create_summary_stats(metrics),
         }
 
         # Convert datetime objects to strings
@@ -934,7 +991,7 @@ class GenericSLOSLAReportGenerator:
         data = convert_datetime(data)
 
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(data, f, indent=2)
 
         self.logger.info(f"JSON data exported to {output_path}")
@@ -944,19 +1001,22 @@ class GenericSLOSLAReportGenerator:
 if __name__ == "__main__":
     # Configure logging
     logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
     # Example usage - can be customized for any application
     app_name = "Multi-Service Application"
-    services = ["web-frontend", "api-gateway", "user-service", "payment-service", "notification-service"]
+    services = [
+        "web-frontend",
+        "api-gateway",
+        "user-service",
+        "payment-service",
+        "notification-service",
+    ]
 
     generator = GenericSLOSLAReportGenerator(app_name=app_name)
     report_paths = generator.generate_comprehensive_report(
-        services=services,
-        days_back=30,
-        include_llm_analysis=True
+        services=services, days_back=30, include_llm_analysis=True
     )
 
     print(f"🎯 {app_name} SLO/SLA Report Generation Complete!")

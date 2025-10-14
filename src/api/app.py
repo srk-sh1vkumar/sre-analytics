@@ -4,23 +4,25 @@ FastAPI Application for SRE Analytics
 Provides RESTful API access to metrics, reports, incidents, and anomaly detection.
 """
 
-from fastapi import FastAPI, HTTPException, Depends, Security, Header, status
-from fastapi.security import APIKeyHeader
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
 import logging
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 
-from .auth import (
-    key_manager, rate_limiter, has_permission,
-    Role, APIKey
-)
+from fastapi import Depends, FastAPI, Header, HTTPException, Security, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.security import APIKeyHeader
+from pydantic import BaseModel, Field
+
+from .auth import APIKey, Role, has_permission, key_manager, rate_limiter
 from .models import (
-    MetricsResponse, ServiceHealth, AnomalyReport,
-    CreateReportRequest, ReportResponse,
-    ErrorResponse, HealthResponse
+    AnomalyReport,
+    CreateReportRequest,
+    ErrorResponse,
+    HealthResponse,
+    MetricsResponse,
+    ReportResponse,
+    ServiceHealth,
 )
 
 # Configure logging
@@ -34,7 +36,7 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
-    openapi_url="/openapi.json"
+    openapi_url="/openapi.json",
 )
 
 # Add CORS middleware
@@ -54,9 +56,8 @@ api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 # Dependency: Authentication & Rate Limiting
 # ============================================================================
 
-async def get_api_key(
-    api_key: Optional[str] = Security(api_key_header)
-) -> APIKey:
+
+async def get_api_key(api_key: Optional[str] = Security(api_key_header)) -> APIKey:
     """
     Validate API key from header
 
@@ -66,14 +67,13 @@ async def get_api_key(
     if not api_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing API key. Include 'X-API-Key' header."
+            detail="Missing API key. Include 'X-API-Key' header.",
         )
 
     validated_key = key_manager.validate_key(api_key)
     if not validated_key:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or revoked API key"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or revoked API key"
         )
 
     return validated_key
@@ -95,8 +95,8 @@ async def check_rate_limit(api_key: APIKey = Depends(get_api_key)) -> APIKey:
             headers={
                 "X-RateLimit-Limit": str(info["limit"]),
                 "X-RateLimit-Remaining": "0",
-                "X-RateLimit-Reset": str(info["reset_in"])
-            }
+                "X-RateLimit-Reset": str(info["reset_in"]),
+            },
         )
 
     return api_key
@@ -107,7 +107,7 @@ async def require_write_access(api_key: APIKey = Depends(check_rate_limit)) -> A
     if not has_permission(api_key, Role.WRITE):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions. WRITE role required."
+            detail="Insufficient permissions. WRITE role required.",
         )
     return api_key
 
@@ -117,7 +117,7 @@ async def require_admin_access(api_key: APIKey = Depends(check_rate_limit)) -> A
     if not has_permission(api_key, Role.ADMIN):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions. ADMIN role required."
+            detail="Insufficient permissions. ADMIN role required.",
         )
     return api_key
 
@@ -125,6 +125,7 @@ async def require_admin_access(api_key: APIKey = Depends(check_rate_limit)) -> A
 # ============================================================================
 # Middleware: Add rate limit headers to all responses
 # ============================================================================
+
 
 @app.middleware("http")
 async def add_rate_limit_headers(request, call_next):
@@ -148,12 +149,8 @@ async def add_rate_limit_headers(request, call_next):
 # Health & Status Endpoints
 # ============================================================================
 
-@app.get(
-    "/health",
-    response_model=HealthResponse,
-    tags=["Health"],
-    summary="Health check endpoint"
-)
+
+@app.get("/health", response_model=HealthResponse, tags=["Health"], summary="Health check endpoint")
 async def health_check():
     """
     Check API health status
@@ -165,11 +162,7 @@ async def health_check():
         status="healthy",
         version="1.0.0",
         timestamp=datetime.now(),
-        components={
-            "api": "healthy",
-            "authentication": "healthy",
-            "rate_limiter": "healthy"
-        }
+        components={"api": "healthy", "authentication": "healthy", "rate_limiter": "healthy"},
     )
 
 
@@ -177,7 +170,7 @@ async def health_check():
     "/api/v1/status",
     response_model=Dict[str, Any],
     tags=["Health"],
-    summary="API status and statistics"
+    summary="API status and statistics",
 )
 async def api_status(api_key: APIKey = Depends(check_rate_limit)):
     """
@@ -192,7 +185,7 @@ async def api_status(api_key: APIKey = Depends(check_rate_limit)):
         "authenticated_as": api_key.name,
         "role": api_key.role.value,
         "rate_limit": rate_info,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
 
@@ -200,16 +193,17 @@ async def api_status(api_key: APIKey = Depends(check_rate_limit)):
 # Metrics Endpoints
 # ============================================================================
 
+
 @app.get(
     "/api/v1/metrics",
     response_model=MetricsResponse,
     tags=["Metrics"],
-    summary="Get current metrics for services"
+    summary="Get current metrics for services",
 )
 async def get_metrics(
     services: Optional[str] = None,
     metric_types: Optional[str] = None,
-    api_key: APIKey = Depends(check_rate_limit)
+    api_key: APIKey = Depends(check_rate_limit),
 ):
     """
     Get current SLO metrics for services
@@ -232,7 +226,7 @@ async def get_metrics(
         services=service_list or ["product-service", "order-service"],
         metrics=[],
         timestamp=datetime.now(),
-        count=0
+        count=0,
     )
 
 
@@ -240,12 +234,10 @@ async def get_metrics(
     "/api/v1/services/{service_name}/health",
     response_model=ServiceHealth,
     tags=["Metrics"],
-    summary="Get health status for a specific service"
+    summary="Get health status for a specific service",
 )
 async def get_service_health(
-    service_name: str,
-    hours_back: int = 1,
-    api_key: APIKey = Depends(check_rate_limit)
+    service_name: str, hours_back: int = 1, api_key: APIKey = Depends(check_rate_limit)
 ):
     """
     Get comprehensive health status for a service
@@ -266,7 +258,7 @@ async def get_service_health(
         status="healthy",
         metrics_count=0,
         slo_compliance=98.5,
-        timestamp=datetime.now()
+        timestamp=datetime.now(),
     )
 
 
@@ -274,17 +266,18 @@ async def get_service_health(
 # Anomaly Detection Endpoints
 # ============================================================================
 
+
 @app.get(
     "/api/v1/anomalies",
     response_model=List[AnomalyReport],
     tags=["Anomaly Detection"],
-    summary="Get recent anomalies across all services"
+    summary="Get recent anomalies across all services",
 )
 async def get_anomalies(
     services: Optional[str] = None,
     severity: Optional[str] = None,
     hours_back: int = 4,
-    api_key: APIKey = Depends(check_rate_limit)
+    api_key: APIKey = Depends(check_rate_limit),
 ):
     """
     Get recent anomalies detected across services
@@ -307,13 +300,13 @@ async def get_anomalies(
     "/api/v1/anomalies/detect",
     response_model=List[AnomalyReport],
     tags=["Anomaly Detection"],
-    summary="Run anomaly detection on specified services"
+    summary="Run anomaly detection on specified services",
 )
 async def detect_anomalies(
     services: List[str],
     detection_method: str = "modified_z_score",
     hours_back: int = 4,
-    api_key: APIKey = Depends(require_write_access)
+    api_key: APIKey = Depends(require_write_access),
 ):
     """
     Trigger anomaly detection for specified services
@@ -336,16 +329,15 @@ async def detect_anomalies(
 # Report Endpoints
 # ============================================================================
 
+
 @app.get(
     "/api/v1/reports",
     response_model=List[Dict[str, Any]],
     tags=["Reports"],
-    summary="List available reports"
+    summary="List available reports",
 )
 async def list_reports(
-    limit: int = 10,
-    offset: int = 0,
-    api_key: APIKey = Depends(check_rate_limit)
+    limit: int = 10, offset: int = 0, api_key: APIKey = Depends(check_rate_limit)
 ):
     """
     List generated SRE reports
@@ -365,11 +357,10 @@ async def list_reports(
     "/api/v1/reports/generate",
     response_model=ReportResponse,
     tags=["Reports"],
-    summary="Generate a new SRE report"
+    summary="Generate a new SRE report",
 )
 async def generate_report(
-    request: CreateReportRequest,
-    api_key: APIKey = Depends(require_write_access)
+    request: CreateReportRequest, api_key: APIKey = Depends(require_write_access)
 ):
     """
     Generate a new SRE report
@@ -390,7 +381,7 @@ async def generate_report(
     return ReportResponse(
         report_id="report_" + datetime.now().strftime("%Y%m%d_%H%M%S"),
         status="generating",
-        created_at=datetime.now()
+        created_at=datetime.now(),
     )
 
 
@@ -398,12 +389,9 @@ async def generate_report(
     "/api/v1/reports/{report_id}",
     response_model=Dict[str, Any],
     tags=["Reports"],
-    summary="Get a specific report"
+    summary="Get a specific report",
 )
-async def get_report(
-    report_id: str,
-    api_key: APIKey = Depends(check_rate_limit)
-):
+async def get_report(report_id: str, api_key: APIKey = Depends(check_rate_limit)):
     """
     Retrieve a generated report
 
@@ -415,8 +403,7 @@ async def get_report(
     """
     # TODO: Implement report retrieval
     raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Report {report_id} not found"
+        status_code=status.HTTP_404_NOT_FOUND, detail=f"Report {report_id} not found"
     )
 
 
@@ -424,17 +411,18 @@ async def get_report(
 # Admin Endpoints (API Key Management)
 # ============================================================================
 
+
 @app.post(
     "/api/v1/admin/keys",
     response_model=Dict[str, Any],
     tags=["Admin"],
-    summary="Create a new API key"
+    summary="Create a new API key",
 )
 async def create_api_key(
     name: str,
     role: str = "read",
     rate_limit: int = 100,
-    api_key: APIKey = Depends(require_admin_access)
+    api_key: APIKey = Depends(require_admin_access),
 ):
     """
     Create a new API key
@@ -456,14 +444,10 @@ async def create_api_key(
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid role. Must be one of: read, write, admin"
+            detail=f"Invalid role. Must be one of: read, write, admin",
         )
 
-    raw_key, new_key = key_manager.generate_key(
-        name=name,
-        role=role_enum,
-        rate_limit=rate_limit
-    )
+    raw_key, new_key = key_manager.generate_key(name=name, role=role_enum, rate_limit=rate_limit)
 
     return {
         "api_key": raw_key,  # Only time this is shown!
@@ -472,7 +456,7 @@ async def create_api_key(
         "role": new_key.role.value,
         "rate_limit": new_key.rate_limit,
         "created_at": new_key.created_at.isoformat(),
-        "warning": "Save this API key now! It cannot be retrieved later."
+        "warning": "Save this API key now! It cannot be retrieved later.",
     }
 
 
@@ -480,7 +464,7 @@ async def create_api_key(
     "/api/v1/admin/keys",
     response_model=List[Dict[str, Any]],
     tags=["Admin"],
-    summary="List all API keys"
+    summary="List all API keys",
 )
 async def list_api_keys(api_key: APIKey = Depends(require_admin_access)):
     """
@@ -498,12 +482,9 @@ async def list_api_keys(api_key: APIKey = Depends(require_admin_access)):
     "/api/v1/admin/keys/{key_id}",
     response_model=Dict[str, str],
     tags=["Admin"],
-    summary="Revoke an API key"
+    summary="Revoke an API key",
 )
-async def revoke_api_key(
-    key_id: str,
-    api_key: APIKey = Depends(require_admin_access)
-):
+async def revoke_api_key(key_id: str, api_key: APIKey = Depends(require_admin_access)):
     """
     Revoke an API key
 
@@ -518,8 +499,7 @@ async def revoke_api_key(
     success = key_manager.revoke_key(key_id)
     if not success:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"API key {key_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"API key {key_id} not found"
         )
 
     return {"message": f"API key {key_id} revoked successfully"}
@@ -529,16 +509,15 @@ async def revoke_api_key(
 # Error Handlers
 # ============================================================================
 
+
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):
     """Handle HTTP exceptions with consistent error format"""
     return JSONResponse(
         status_code=exc.status_code,
         content=ErrorResponse(
-            error=exc.detail,
-            status_code=exc.status_code,
-            timestamp=datetime.now()
-        ).dict()
+            error=exc.detail, status_code=exc.status_code, timestamp=datetime.now()
+        ).dict(),
     )
 
 
@@ -549,8 +528,6 @@ async def general_exception_handler(request, exc):
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content=ErrorResponse(
-            error="Internal server error",
-            status_code=500,
-            timestamp=datetime.now()
-        ).dict()
+            error="Internal server error", status_code=500, timestamp=datetime.now()
+        ).dict(),
     )

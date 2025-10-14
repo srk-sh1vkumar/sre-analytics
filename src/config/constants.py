@@ -37,7 +37,7 @@ ERROR_RATE_CRITICAL: Final[float] = 5.0
 
 # Compliance thresholds
 COMPLIANCE_THRESHOLD_COMPLIANT: Final[float] = 0.999  # 99.9%
-COMPLIANCE_THRESHOLD_AT_RISK: Final[float] = 0.95   # 95%
+COMPLIANCE_THRESHOLD_AT_RISK: Final[float] = 0.95  # 95%
 
 # ============================================================================
 # API AND NETWORK CONSTANTS
@@ -98,7 +98,7 @@ PDF_FONT_SIZE_SMALL: Final[int] = 9
 PDF_COLOR_PRIMARY: Final[Tuple[int, int, int]] = (0, 122, 204)  # #007acc
 PDF_COLOR_SUCCESS: Final[Tuple[int, int, int]] = (40, 167, 69)  # #28a745
 PDF_COLOR_WARNING: Final[Tuple[int, int, int]] = (255, 193, 7)  # #ffc107
-PDF_COLOR_DANGER: Final[Tuple[int, int, int]] = (220, 53, 69)   # #dc3545
+PDF_COLOR_DANGER: Final[Tuple[int, int, int]] = (220, 53, 69)  # #dc3545
 PDF_COLOR_GRAY_LIGHT: Final[Tuple[float, float, float]] = (0.95, 0.95, 0.95)
 PDF_COLOR_GRAY_MEDIUM: Final[Tuple[float, float, float]] = (0.75, 0.75, 0.75)
 
@@ -112,63 +112,63 @@ CHART_HEIGHT: Final[int] = 600
 CHART_DPI: Final[int] = 100
 
 # Chart colors (hex)
-CHART_COLOR_PRIMARY: Final[str] = '#007acc'
-CHART_COLOR_SUCCESS: Final[str] = '#28a745'
-CHART_COLOR_WARNING: Final[str] = '#ffc107'
-CHART_COLOR_DANGER: Final[str] = '#dc3545'
-CHART_COLOR_INFO: Final[str] = '#17a2b8'
+CHART_COLOR_PRIMARY: Final[str] = "#007acc"
+CHART_COLOR_SUCCESS: Final[str] = "#28a745"
+CHART_COLOR_WARNING: Final[str] = "#ffc107"
+CHART_COLOR_DANGER: Final[str] = "#dc3545"
+CHART_COLOR_INFO: Final[str] = "#17a2b8"
 
 # ============================================================================
 # METRICS AND MONITORING CONSTANTS
 # ============================================================================
 
 # Metric names
-METRIC_AVAILABILITY: Final[str] = 'availability'
-METRIC_LATENCY_P95: Final[str] = 'latency_p95'
-METRIC_LATENCY_P99: Final[str] = 'latency_p99'
-METRIC_ERROR_RATE: Final[str] = 'error_rate'
-METRIC_THROUGHPUT: Final[str] = 'throughput'
-METRIC_CPU_USAGE: Final[str] = 'cpu_usage'
-METRIC_MEMORY_USAGE: Final[str] = 'memory_usage'
+METRIC_AVAILABILITY: Final[str] = "availability"
+METRIC_LATENCY_P95: Final[str] = "latency_p95"
+METRIC_LATENCY_P99: Final[str] = "latency_p99"
+METRIC_ERROR_RATE: Final[str] = "error_rate"
+METRIC_THROUGHPUT: Final[str] = "throughput"
+METRIC_CPU_USAGE: Final[str] = "cpu_usage"
+METRIC_MEMORY_USAGE: Final[str] = "memory_usage"
 
 # Metric units
-UNIT_PERCENTAGE: Final[str] = '%'
-UNIT_MILLISECONDS: Final[str] = 'ms'
-UNIT_SECONDS: Final[str] = 's'
-UNIT_REQUESTS_PER_MINUTE: Final[str] = 'req/min'
+UNIT_PERCENTAGE: Final[str] = "%"
+UNIT_MILLISECONDS: Final[str] = "ms"
+UNIT_SECONDS: Final[str] = "s"
+UNIT_REQUESTS_PER_MINUTE: Final[str] = "req/min"
 
 # ============================================================================
 # INCIDENT SEVERITY LEVELS
 # ============================================================================
 
-SEVERITY_CRITICAL: Final[str] = 'Critical'
-SEVERITY_HIGH: Final[str] = 'High'
-SEVERITY_MEDIUM: Final[str] = 'Medium'
-SEVERITY_LOW: Final[str] = 'Low'
+SEVERITY_CRITICAL: Final[str] = "Critical"
+SEVERITY_HIGH: Final[str] = "High"
+SEVERITY_MEDIUM: Final[str] = "Medium"
+SEVERITY_LOW: Final[str] = "Low"
 
 # ============================================================================
 # SLO STATUS CATEGORIES
 # ============================================================================
 
-STATUS_COMPLIANT: Final[str] = 'compliant'
-STATUS_AT_RISK: Final[str] = 'at_risk'
-STATUS_BREACHED: Final[str] = 'breached'
+STATUS_COMPLIANT: Final[str] = "compliant"
+STATUS_AT_RISK: Final[str] = "at_risk"
+STATUS_BREACHED: Final[str] = "breached"
 
 # ============================================================================
 # HEALTH STATUS
 # ============================================================================
 
-HEALTH_HEALTHY: Final[str] = 'Healthy'
-HEALTH_DEGRADED: Final[str] = 'Degraded'
-HEALTH_UNHEALTHY: Final[str] = 'Unhealthy'
+HEALTH_HEALTHY: Final[str] = "Healthy"
+HEALTH_DEGRADED: Final[str] = "Degraded"
+HEALTH_UNHEALTHY: Final[str] = "Unhealthy"
 
 # ============================================================================
 # FILE AND DIRECTORY PATHS
 # ============================================================================
 
-DEFAULT_REPORT_OUTPUT_DIR: Final[str] = 'reports/generated'
-DEFAULT_CONFIG_DIR: Final[str] = 'config'
-DEFAULT_LOGS_DIR: Final[str] = 'logs'
+DEFAULT_REPORT_OUTPUT_DIR: Final[str] = "reports/generated"
+DEFAULT_CONFIG_DIR: Final[str] = "config"
+DEFAULT_LOGS_DIR: Final[str] = "logs"
 
 # ============================================================================
 # DATA GENERATION AND SIMULATION
@@ -200,35 +200,35 @@ TABLE_BORDER_WIDTH: Final[int] = 1
 # LLM AND AI CONSTANTS
 # ============================================================================
 
-LLM_PROVIDER_OPENAI: Final[str] = 'openai'
-LLM_PROVIDER_ANTHROPIC: Final[str] = 'anthropic'
+LLM_PROVIDER_OPENAI: Final[str] = "openai"
+LLM_PROVIDER_ANTHROPIC: Final[str] = "anthropic"
 
 # Model names
-LLM_MODEL_GPT4: Final[str] = 'gpt-4'
-LLM_MODEL_GPT35: Final[str] = 'gpt-3.5-turbo'
-LLM_MODEL_CLAUDE_OPUS: Final[str] = 'claude-3-opus-20240229'
-LLM_MODEL_CLAUDE_SONNET: Final[str] = 'claude-3-5-sonnet-20241022'
+LLM_MODEL_GPT4: Final[str] = "gpt-4"
+LLM_MODEL_GPT35: Final[str] = "gpt-3.5-turbo"
+LLM_MODEL_CLAUDE_OPUS: Final[str] = "claude-3-opus-20240229"
+LLM_MODEL_CLAUDE_SONNET: Final[str] = "claude-3-5-sonnet-20241022"
 
 # ============================================================================
 # BROWSER PDF CONSTANTS
 # ============================================================================
 
 BROWSER_PDF_TIMEOUT_MS: Final[int] = 30000
-BROWSER_PDF_WAIT_FOR_SELECTOR: Final[str] = 'body'
-BROWSER_PDF_MARGIN_TOP: Final[str] = '20mm'
-BROWSER_PDF_MARGIN_BOTTOM: Final[str] = '20mm'
-BROWSER_PDF_MARGIN_LEFT: Final[str] = '15mm'
-BROWSER_PDF_MARGIN_RIGHT: Final[str] = '15mm'
+BROWSER_PDF_WAIT_FOR_SELECTOR: Final[str] = "body"
+BROWSER_PDF_MARGIN_TOP: Final[str] = "20mm"
+BROWSER_PDF_MARGIN_BOTTOM: Final[str] = "20mm"
+BROWSER_PDF_MARGIN_LEFT: Final[str] = "15mm"
+BROWSER_PDF_MARGIN_RIGHT: Final[str] = "15mm"
 
 # ============================================================================
 # LOGGING CONSTANTS
 # ============================================================================
 
-LOG_LEVEL_DEBUG: Final[str] = 'DEBUG'
-LOG_LEVEL_INFO: Final[str] = 'INFO'
-LOG_LEVEL_WARNING: Final[str] = 'WARNING'
-LOG_LEVEL_ERROR: Final[str] = 'ERROR'
-LOG_LEVEL_CRITICAL: Final[str] = 'CRITICAL'
+LOG_LEVEL_DEBUG: Final[str] = "DEBUG"
+LOG_LEVEL_INFO: Final[str] = "INFO"
+LOG_LEVEL_WARNING: Final[str] = "WARNING"
+LOG_LEVEL_ERROR: Final[str] = "ERROR"
+LOG_LEVEL_CRITICAL: Final[str] = "CRITICAL"
 
 # ============================================================================
 # CACHE AND PERFORMANCE

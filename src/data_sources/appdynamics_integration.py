@@ -7,15 +7,15 @@ Includes rate limiting, caching, and error budget tracking.
 
 import logging
 import time
-from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Any
-from functools import wraps
 from collections import deque
+from datetime import datetime, timedelta
+from functools import wraps
+from typing import Any, Dict, List, Optional
 
+from ..reports.llm_analyzer import SLOMetric
 from .appdynamics_adapter import AppDynamicsAdapter
 from .appdynamics_slo_mapper import AppDynamicsSLOMapper
-from .base import DataSourceConfig, QueryParams, StandardMetric, MetricType
-from ..reports.llm_analyzer import SLOMetric
+from .base import DataSourceConfig, MetricType, QueryParams, StandardMetric
 
 
 class RateLimiter:
@@ -36,10 +36,12 @@ class RateLimiter:
 
     def __call__(self, func):
         """Decorator for rate limiting"""
+
         @wraps(func)
         def wrapper(*args, **kwargs):
             self._wait_if_needed()
             return func(*args, **kwargs)
+
         return wrapper
 
     def _wait_if_needed(self):
@@ -54,9 +56,7 @@ class RateLimiter:
         if len(self.calls) >= self.max_calls:
             sleep_time = self.time_window - (now - self.calls[0])
             if sleep_time > 0:
-                self.logger.warning(
-                    f"Rate limit reached. Waiting {sleep_time:.2f} seconds..."
-                )
+                self.logger.warning(f"Rate limit reached. Waiting {sleep_time:.2f} seconds...")
                 time.sleep(sleep_time)
                 self._wait_if_needed()  # Recurse to recheck
 
@@ -114,7 +114,7 @@ class AppDynamicsIntegration:
         slo_targets: Optional[Dict[str, Dict[str, float]]] = None,
         rate_limit_calls: int = 100,
         rate_limit_window: int = 60,
-        cache_ttl: int = 300
+        cache_ttl: int = 300,
     ):
         """
         Initialize AppDynamics integration
@@ -141,12 +141,10 @@ class AppDynamicsIntegration:
             "cache_misses": 0,
             "api_calls": 0,
             "errors": 0,
-            "last_query_time": None
+            "last_query_time": None,
         }
 
-        self.logger.info(
-            f"AppDynamics integration initialized for {config.name}"
-        )
+        self.logger.info(f"AppDynamics integration initialized for {config.name}")
 
     def connect(self) -> bool:
         """Establish connection to AppDynamics"""
@@ -167,7 +165,7 @@ class AppDynamicsIntegration:
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         metric_types: Optional[List[MetricType]] = None,
-        use_cache: bool = True
+        use_cache: bool = True,
     ) -> List[SLOMetric]:
         """
         Get SLO metrics for specified services
@@ -208,9 +206,7 @@ class AppDynamicsIntegration:
             )
 
             # Map to SLO metrics
-            slo_metrics = self.mapper.map_to_slo_metrics(
-                standard_metrics, calculate_trends=True
-            )
+            slo_metrics = self.mapper.map_to_slo_metrics(standard_metrics, calculate_trends=True)
 
             # Cache results
             if use_cache:
@@ -234,7 +230,7 @@ class AppDynamicsIntegration:
         services: List[str],
         start_time: datetime,
         end_time: datetime,
-        metric_types: Optional[List[MetricType]]
+        metric_types: Optional[List[MetricType]],
     ) -> List[StandardMetric]:
         """Query AppDynamics with rate limiting"""
 
@@ -244,10 +240,7 @@ class AppDynamicsIntegration:
 
         # Create query params
         params = QueryParams(
-            start_time=start_time,
-            end_time=end_time,
-            services=services,
-            metric_types=metric_types
+            start_time=start_time, end_time=end_time, services=services, metric_types=metric_types
         )
 
         # Execute query
@@ -256,9 +249,7 @@ class AppDynamicsIntegration:
 
         return standard_metrics
 
-    def get_service_health_report(
-        self, service_name: str, hours_back: int = 24
-    ) -> Dict[str, Any]:
+    def get_service_health_report(self, service_name: str, hours_back: int = 24) -> Dict[str, Any]:
         """
         Get comprehensive health report for a service
 
@@ -274,15 +265,11 @@ class AppDynamicsIntegration:
 
         # Get SLO metrics
         slo_metrics = self.get_slo_metrics_for_services(
-            services=[service_name],
-            start_time=start_time,
-            end_time=end_time
+            services=[service_name], start_time=start_time, end_time=end_time
         )
 
         # Calculate health score
-        health_score = self.mapper.calculate_service_health_score(
-            slo_metrics, service_name
-        )
+        health_score = self.mapper.calculate_service_health_score(slo_metrics, service_name)
 
         # Organize metrics by type
         metrics_by_type = {}
@@ -293,7 +280,7 @@ class AppDynamicsIntegration:
                 "status": metric.status,
                 "error_budget_consumed": metric.error_budget_consumed,
                 "unit": metric.unit,
-                "trend": metric.trend_data[-5:] if metric.trend_data else []
+                "trend": metric.trend_data[-5:] if metric.trend_data else [],
             }
 
         # Generate insights
@@ -305,12 +292,12 @@ class AppDynamicsIntegration:
             "time_range": {
                 "start": start_time.isoformat(),
                 "end": end_time.isoformat(),
-                "hours": hours_back
+                "hours": hours_back,
             },
             "health_score": health_score,
             "metrics": metrics_by_type,
             "insights": insights,
-            "total_metrics": len(slo_metrics)
+            "total_metrics": len(slo_metrics),
         }
 
     def _generate_insights(self, slo_metrics: List[SLOMetric]) -> List[str]:
@@ -335,13 +322,9 @@ class AppDynamicsIntegration:
         for metric in slo_metrics:
             if metric.trend_data and len(metric.trend_data) >= 3:
                 if self._is_trending_up(metric.trend_data):
-                    insights.append(
-                        f"📈 {metric.metric_name} trending upward"
-                    )
+                    insights.append(f"📈 {metric.metric_name} trending upward")
                 elif self._is_trending_down(metric.trend_data):
-                    insights.append(
-                        f"📉 {metric.metric_name} trending downward"
-                    )
+                    insights.append(f"📉 {metric.metric_name} trending downward")
 
         if not insights:
             insights.append("✅ All metrics within acceptable ranges")
@@ -354,7 +337,7 @@ class AppDynamicsIntegration:
             return False
 
         recent = trend_data[-3:]
-        return all(recent[i] < recent[i+1] for i in range(len(recent)-1))
+        return all(recent[i] < recent[i + 1] for i in range(len(recent) - 1))
 
     def _is_trending_down(self, trend_data: List[float]) -> bool:
         """Check if trend is going down"""
@@ -362,14 +345,14 @@ class AppDynamicsIntegration:
             return False
 
         recent = trend_data[-3:]
-        return all(recent[i] > recent[i+1] for i in range(len(recent)-1))
+        return all(recent[i] > recent[i + 1] for i in range(len(recent) - 1))
 
     def _generate_cache_key(
         self,
         services: List[str],
         start_time: datetime,
         end_time: datetime,
-        metric_types: Optional[List[MetricType]]
+        metric_types: Optional[List[MetricType]],
     ) -> str:
         """Generate cache key for query"""
         services_str = ",".join(sorted(services))
@@ -388,9 +371,10 @@ class AppDynamicsIntegration:
             **self.stats,
             "cache_size": len(self.cache.cache),
             "cache_hit_rate": (
-                self.stats["cache_hits"] /
-                max(1, self.stats["cache_hits"] + self.stats["cache_misses"])
-            ) * 100
+                self.stats["cache_hits"]
+                / max(1, self.stats["cache_hits"] + self.stats["cache_misses"])
+            )
+            * 100,
         }
 
     def clear_cache(self):

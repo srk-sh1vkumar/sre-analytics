@@ -6,17 +6,18 @@ Provides proactive alerts before SLO breaches occur.
 """
 
 import logging
-from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Any
 from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 
-from .anomaly_detector import AnomalyDetector, Anomaly, AnomalyMethod, AnomalySeverity
 from ..reports.llm_analyzer import SLOMetric
+from .anomaly_detector import Anomaly, AnomalyDetector, AnomalyMethod, AnomalySeverity
 
 
 @dataclass
 class SLOAnomalyReport:
     """Report of anomalies detected in SLO metrics"""
+
     service_name: str
     metric_name: str
     anomalies: List[Anomaly]
@@ -37,7 +38,7 @@ class SLOAnomalyMonitor:
         self,
         detector: Optional[AnomalyDetector] = None,
         enable_predictions: bool = True,
-        alert_lead_time_minutes: int = 30
+        alert_lead_time_minutes: int = 30,
     ):
         """
         Initialize SLO anomaly monitor
@@ -48,9 +49,7 @@ class SLOAnomalyMonitor:
             alert_lead_time_minutes: How far ahead to predict breaches
         """
         self.detector = detector or AnomalyDetector(
-            sensitivity=2.5,
-            baseline_window_hours=168,  # 1 week
-            min_samples=30
+            sensitivity=2.5, baseline_window_hours=168, min_samples=30  # 1 week
         )
         self.enable_predictions = enable_predictions
         self.alert_lead_time_minutes = alert_lead_time_minutes
@@ -59,7 +58,7 @@ class SLOAnomalyMonitor:
     def analyze_slo_metrics(
         self,
         slo_metrics: List[SLOMetric],
-        detection_method: AnomalyMethod = AnomalyMethod.MODIFIED_Z_SCORE
+        detection_method: AnomalyMethod = AnomalyMethod.MODIFIED_Z_SCORE,
     ) -> List[SLOAnomalyReport]:
         """
         Analyze SLO metrics for anomalies
@@ -94,9 +93,7 @@ class SLOAnomalyMonitor:
         return reports
 
     def _analyze_single_metric(
-        self,
-        metric: SLOMetric,
-        detection_method: AnomalyMethod
+        self, metric: SLOMetric, detection_method: AnomalyMethod
     ) -> Optional[SLOAnomalyReport]:
         """Analyze a single SLO metric for anomalies"""
 
@@ -105,7 +102,7 @@ class SLOAnomalyMonitor:
         timestamps = self._generate_timestamps(
             end_time=metric.timestamp,
             count=len(metric.trend_data),
-            interval_minutes=5  # Assume 5-minute intervals
+            interval_minutes=5,  # Assume 5-minute intervals
         )
 
         # Detect anomalies
@@ -114,13 +111,11 @@ class SLOAnomalyMonitor:
             timestamps=timestamps,
             metric_name=metric.metric_name,
             service_name=metric.service_name,
-            method=detection_method
+            method=detection_method,
         )
 
         # Determine baseline health
-        baseline_health = self._determine_baseline_health(
-            metric, anomalies
-        )
+        baseline_health = self._determine_baseline_health(metric, anomalies)
 
         # Predict SLO breach
         prediction = {}
@@ -129,13 +124,11 @@ class SLOAnomalyMonitor:
                 values=metric.trend_data,
                 timestamps=timestamps,
                 slo_target=metric.slo_target,
-                forecast_minutes=self.alert_lead_time_minutes
+                forecast_minutes=self.alert_lead_time_minutes,
             )
 
         # Generate recommendations
-        recommendations = self._generate_recommendations(
-            metric, anomalies, prediction
-        )
+        recommendations = self._generate_recommendations(metric, anomalies, prediction)
 
         # Only create report if there are anomalies or predictions
         if anomalies or (prediction and prediction.get("will_breach")):
@@ -146,16 +139,13 @@ class SLOAnomalyMonitor:
                 baseline_health=baseline_health,
                 prediction=prediction,
                 recommendations=recommendations,
-                generated_at=datetime.now()
+                generated_at=datetime.now(),
             )
 
         return None
 
     def _generate_timestamps(
-        self,
-        end_time: datetime,
-        count: int,
-        interval_minutes: int
+        self, end_time: datetime, count: int, interval_minutes: int
     ) -> List[datetime]:
         """Generate evenly-spaced timestamps for trend data"""
         timestamps = []
@@ -165,11 +155,7 @@ class SLOAnomalyMonitor:
             timestamps.append(ts)
         return timestamps
 
-    def _determine_baseline_health(
-        self,
-        metric: SLOMetric,
-        anomalies: List[Anomaly]
-    ) -> str:
+    def _determine_baseline_health(self, metric: SLOMetric, anomalies: List[Anomaly]) -> str:
         """Determine overall health status"""
 
         # Check SLO compliance first
@@ -194,10 +180,7 @@ class SLOAnomalyMonitor:
             return "healthy"
 
     def _generate_recommendations(
-        self,
-        metric: SLOMetric,
-        anomalies: List[Anomaly],
-        prediction: Dict[str, Any]
+        self, metric: SLOMetric, anomalies: List[Anomaly], prediction: Dict[str, Any]
     ) -> List[str]:
         """Generate actionable recommendations"""
         recommendations = []
@@ -213,7 +196,8 @@ class SLOAnomalyMonitor:
 
             # Check for recent spike
             recent_anomalies = [
-                a for a in anomalies
+                a
+                for a in anomalies
                 if (datetime.now() - a.timestamp).total_seconds() < 600  # Last 10 minutes
             ]
             if recent_anomalies:
@@ -267,12 +251,9 @@ class SLOAnomalyMonitor:
             return False
 
         recent = trend_data[-3:]
-        return all(recent[i] < recent[i+1] for i in range(len(recent)-1))
+        return all(recent[i] < recent[i + 1] for i in range(len(recent) - 1))
 
-    def get_summary_report(
-        self,
-        reports: List[SLOAnomalyReport]
-    ) -> Dict[str, Any]:
+    def get_summary_report(self, reports: List[SLOAnomalyReport]) -> Dict[str, Any]:
         """
         Generate summary report across all services
 
@@ -286,24 +267,20 @@ class SLOAnomalyMonitor:
 
         # Count by severity
         critical_anomalies = sum(
-            sum(1 for a in r.anomalies if a.severity == AnomalySeverity.CRITICAL)
-            for r in reports
+            sum(1 for a in r.anomalies if a.severity == AnomalySeverity.CRITICAL) for r in reports
         )
         warning_anomalies = sum(
-            sum(1 for a in r.anomalies if a.severity == AnomalySeverity.WARNING)
-            for r in reports
+            sum(1 for a in r.anomalies if a.severity == AnomalySeverity.WARNING) for r in reports
         )
 
         # Count predicted breaches
         predicted_breaches = sum(
-            1 for r in reports
-            if r.prediction and r.prediction.get("will_breach")
+            1 for r in reports if r.prediction and r.prediction.get("will_breach")
         )
 
         # Services at risk
         at_risk_services = set(
-            r.service_name for r in reports
-            if r.baseline_health in ["warning", "critical"]
+            r.service_name for r in reports if r.baseline_health in ["warning", "critical"]
         )
 
         # Top recommendations
@@ -313,7 +290,8 @@ class SLOAnomalyMonitor:
 
         # Get unique critical recommendations
         critical_recommendations = [
-            rec for rec in all_recommendations
+            rec
+            for rec in all_recommendations
             if any(keyword in rec for keyword in ["⚠️", "🚨", "🔮"])
         ]
 
@@ -326,13 +304,10 @@ class SLOAnomalyMonitor:
             "at_risk_services": list(at_risk_services),
             "critical_recommendations": critical_recommendations[:10],  # Top 10
             "overall_health": self._determine_overall_health(reports),
-            "generated_at": datetime.now().isoformat()
+            "generated_at": datetime.now().isoformat(),
         }
 
-    def _determine_overall_health(
-        self,
-        reports: List[SLOAnomalyReport]
-    ) -> str:
+    def _determine_overall_health(self, reports: List[SLOAnomalyReport]) -> str:
         """Determine overall platform health"""
         critical_count = sum(1 for r in reports if r.baseline_health == "critical")
         warning_count = sum(1 for r in reports if r.baseline_health == "warning")

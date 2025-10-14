@@ -9,19 +9,24 @@ Tests the complete AppDynamics integration including:
 - Health reporting
 """
 
-import pytest
-from datetime import datetime, timedelta
-from unittest.mock import Mock, MagicMock, patch
-from pathlib import Path
 import sys
+from datetime import datetime, timedelta
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.data_sources.appdynamics_adapter import AppDynamicsAdapter
+from src.data_sources.appdynamics_integration import (
+    AppDynamicsIntegration,
+    MetricsCache,
+    RateLimiter,
+)
 from src.data_sources.appdynamics_slo_mapper import AppDynamicsSLOMapper
-from src.data_sources.appdynamics_integration import AppDynamicsIntegration, RateLimiter, MetricsCache
-from src.data_sources.base import DataSourceConfig, DataSourceType, StandardMetric, MetricType
+from src.data_sources.base import DataSourceConfig, DataSourceType, MetricType, StandardMetric
 
 
 class TestAppDynamicsSLOMapper:
@@ -30,11 +35,7 @@ class TestAppDynamicsSLOMapper:
     @pytest.fixture
     def mapper(self):
         slo_targets = {
-            "test-service": {
-                "response_time": 200.0,
-                "error_rate": 1.0,
-                "cpu_utilization": 80.0
-            }
+            "test-service": {"response_time": 200.0, "error_rate": 1.0, "cpu_utilization": 80.0}
         }
         return AppDynamicsSLOMapper(slo_targets=slo_targets)
 
@@ -52,7 +53,7 @@ class TestAppDynamicsSLOMapper:
                 timestamp=now,
                 unit="ms",
                 tags={"component": "api"},
-                raw_data={}
+                raw_data={},
             ),
             StandardMetric(
                 metric_id="test-2",
@@ -63,7 +64,7 @@ class TestAppDynamicsSLOMapper:
                 timestamp=now,
                 unit="%",
                 tags={"component": "api"},
-                raw_data={}
+                raw_data={},
             ),
             StandardMetric(
                 metric_id="test-3",
@@ -74,8 +75,8 @@ class TestAppDynamicsSLOMapper:
                 timestamp=now,
                 unit="%",
                 tags={"component": "infrastructure"},
-                raw_data={}
-            )
+                raw_data={},
+            ),
         ]
 
     def test_map_to_slo_metrics_basic(self, mapper, sample_standard_metrics):
@@ -83,9 +84,9 @@ class TestAppDynamicsSLOMapper:
         slo_metrics = mapper.map_to_slo_metrics(sample_standard_metrics)
 
         assert len(slo_metrics) == 3
-        assert all(hasattr(m, 'service_name') for m in slo_metrics)
-        assert all(hasattr(m, 'slo_target') for m in slo_metrics)
-        assert all(hasattr(m, 'error_budget_consumed') for m in slo_metrics)
+        assert all(hasattr(m, "service_name") for m in slo_metrics)
+        assert all(hasattr(m, "slo_target") for m in slo_metrics)
+        assert all(hasattr(m, "error_budget_consumed") for m in slo_metrics)
 
     def test_error_budget_calculation_response_time(self, mapper):
         """Test error budget calculation for response time"""
@@ -148,7 +149,7 @@ class TestAppDynamicsSLOMapper:
                 timestamp=now,
                 unit="ms",
                 tags={},
-                raw_data={}
+                raw_data={},
             )
         ]
 
@@ -181,6 +182,7 @@ class TestRateLimiter:
             limiter._wait_if_needed()
 
         import time
+
         start = time.time()
 
         # This should be blocked and wait
@@ -215,6 +217,7 @@ class TestMetricsCache:
 
         # Wait for expiration
         import time
+
         time.sleep(1.1)
 
         # Should be expired
@@ -244,16 +247,13 @@ class TestAppDynamicsIntegration:
             name="Test AppDynamics",
             connection_params={"host": "test.appdynamics.com"},
             authentication={"username": "test", "password": "test"},
-            enabled=True
+            enabled=True,
         )
 
     @pytest.fixture
     def integration(self, config):
         return AppDynamicsIntegration(
-            config=config,
-            rate_limit_calls=100,
-            rate_limit_window=60,
-            cache_ttl=300
+            config=config, rate_limit_calls=100, rate_limit_window=60, cache_ttl=300
         )
 
     def test_integration_initialization(self, integration):
@@ -264,7 +264,7 @@ class TestAppDynamicsIntegration:
         assert integration.cache is not None
         assert integration.stats is not None
 
-    @patch.object(AppDynamicsAdapter, 'connect')
+    @patch.object(AppDynamicsAdapter, "connect")
     def test_connect(self, mock_connect, integration):
         """Test connection to AppDynamics"""
         mock_connect.return_value = True
@@ -274,7 +274,7 @@ class TestAppDynamicsIntegration:
         assert result is True
         mock_connect.assert_called_once()
 
-    @patch.object(AppDynamicsAdapter, 'query_metrics')
+    @patch.object(AppDynamicsAdapter, "query_metrics")
     def test_get_slo_metrics_without_cache(self, mock_query, integration):
         """Test getting SLO metrics without cache"""
         # Mock StandardMetric return
@@ -289,21 +289,18 @@ class TestAppDynamicsIntegration:
                 timestamp=now,
                 unit="ms",
                 tags={},
-                raw_data={}
+                raw_data={},
             )
         ]
 
         services = ["test-service"]
-        slo_metrics = integration.get_slo_metrics_for_services(
-            services=services,
-            use_cache=False
-        )
+        slo_metrics = integration.get_slo_metrics_for_services(services=services, use_cache=False)
 
         assert len(slo_metrics) > 0
         assert mock_query.called
         assert integration.stats["total_queries"] == 1
 
-    @patch.object(AppDynamicsAdapter, 'query_metrics')
+    @patch.object(AppDynamicsAdapter, "query_metrics")
     def test_get_slo_metrics_with_cache(self, mock_query, integration):
         """Test that caching works correctly"""
         now = datetime.now()
@@ -317,30 +314,24 @@ class TestAppDynamicsIntegration:
                 timestamp=now,
                 unit="ms",
                 tags={},
-                raw_data={}
+                raw_data={},
             )
         ]
 
         services = ["test-service"]
 
         # First call - should query and cache
-        result1 = integration.get_slo_metrics_for_services(
-            services=services,
-            use_cache=True
-        )
+        result1 = integration.get_slo_metrics_for_services(services=services, use_cache=True)
 
         # Second call - should use cache
-        result2 = integration.get_slo_metrics_for_services(
-            services=services,
-            use_cache=True
-        )
+        result2 = integration.get_slo_metrics_for_services(services=services, use_cache=True)
 
         # Should only query once (second call uses cache)
         assert mock_query.call_count == 1
         assert integration.stats["cache_hits"] == 1
         assert result1 == result2
 
-    @patch.object(AppDynamicsAdapter, 'query_metrics')
+    @patch.object(AppDynamicsAdapter, "query_metrics")
     def test_get_service_health_report(self, mock_query, integration):
         """Test generating service health report"""
         now = datetime.now()
@@ -354,7 +345,7 @@ class TestAppDynamicsIntegration:
                 timestamp=now,
                 unit="ms",
                 tags={},
-                raw_data={}
+                raw_data={},
             )
         ]
 
@@ -393,7 +384,7 @@ class TestAppDynamicsIntegration:
                 timestamp=datetime.now(),
                 unit="ms",
                 description="Test",
-                trend_data=[]
+                trend_data=[],
             )
         ]
 
@@ -418,7 +409,7 @@ class TestAppDynamicsIntegration:
                 timestamp=datetime.now(),
                 unit="ms",
                 description="Test",
-                trend_data=[]
+                trend_data=[],
             )
         ]
 

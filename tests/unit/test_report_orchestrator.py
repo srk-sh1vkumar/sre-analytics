@@ -10,21 +10,23 @@ Tests the main coordination logic for report generation including:
 - Error handling
 """
 
-import pytest
 import json
-import tempfile
-from datetime import datetime, timedelta
-from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch, call
-from typing import List, Dict, Any
 
 # Add src to path for imports
 import sys
+import tempfile
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List
+from unittest.mock import MagicMock, Mock, call, patch
+
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from src.exceptions import FileWriteError, ReportGenerationError
+from src.reports.llm_analyzer import IncidentData, SLOMetric
 from src.reports.report_orchestrator import ReportOrchestrator
-from src.reports.llm_analyzer import SLOMetric, IncidentData
-from src.exceptions import ReportGenerationError, FileWriteError
 
 
 class TestReportOrchestratorInitialization:
@@ -44,10 +46,7 @@ class TestReportOrchestratorInitialization:
 
     def test_init_with_custom_params(self):
         """Test initialization with custom parameters"""
-        orchestrator = ReportOrchestrator(
-            app_name="TestApp",
-            config_dir="custom_config"
-        )
+        orchestrator = ReportOrchestrator(app_name="TestApp", config_dir="custom_config")
 
         assert orchestrator.app_name == "TestApp"
         assert orchestrator.config_dir == Path("custom_config")
@@ -58,13 +57,13 @@ class TestReportOrchestratorInitialization:
 
         # Verify all components exist
         components = [
-            'config_loader',
-            'llm_analyzer',
-            'incident_generator',
-            'metrics_generator',
-            'chart_generator',
-            'html_template_builder',
-            'pdf_generator'
+            "config_loader",
+            "llm_analyzer",
+            "incident_generator",
+            "metrics_generator",
+            "chart_generator",
+            "html_template_builder",
+            "pdf_generator",
         ]
 
         for component in components:
@@ -94,7 +93,7 @@ class TestReportOrchestratorFullReportSuite:
                 status="compliant",
                 timestamp=datetime.now(),
                 error_budget_consumed=25.0,
-                trend_data=[140, 145, 150, 155, 150]
+                trend_data=[140, 145, 150, 155, 150],
             ),
             SLOMetric(
                 service_name="db-service",
@@ -106,8 +105,8 @@ class TestReportOrchestratorFullReportSuite:
                 status="at_risk",
                 timestamp=datetime.now(),
                 error_budget_consumed=80.0,
-                trend_data=[99.95, 99.92, 99.90, 99.88, 99.90]
-            )
+                trend_data=[99.95, 99.92, 99.90, 99.88, 99.90],
+            ),
         ]
 
     @pytest.fixture
@@ -125,45 +124,73 @@ class TestReportOrchestratorFullReportSuite:
             root_cause="Database connection pool exhaustion",
             resolution_steps=["Increased pool size", "Restarted service"],
             lessons_learned="Monitor connection pool metrics",
-            llm_analysis="AI analysis: Database saturation detected"
+            llm_analysis="AI analysis: Database saturation detected",
         )
 
     def test_generate_full_report_suite_success(self, orchestrator, mock_metrics, tmp_path):
         """Test successful full report suite generation"""
-        with patch.object(orchestrator.metrics_generator, 'generate_metrics_with_trends', return_value=mock_metrics):
-            with patch.object(orchestrator, 'create_html_report', return_value=str(tmp_path / "test.html")):
-                with patch.object(orchestrator, 'create_pdf_report', return_value=str(tmp_path / "test.pdf")):
-                    with patch.object(orchestrator, 'export_json_data', return_value=str(tmp_path / "test.json")):
+        with patch.object(
+            orchestrator.metrics_generator,
+            "generate_metrics_with_trends",
+            return_value=mock_metrics,
+        ):
+            with patch.object(
+                orchestrator, "create_html_report", return_value=str(tmp_path / "test.html")
+            ):
+                with patch.object(
+                    orchestrator, "create_pdf_report", return_value=str(tmp_path / "test.pdf")
+                ):
+                    with patch.object(
+                        orchestrator, "export_json_data", return_value=str(tmp_path / "test.json")
+                    ):
 
                         results = orchestrator.generate_full_report_suite(
                             application_name="TestApp",
                             services=["api-service"],
-                            output_dir=str(tmp_path)
+                            output_dir=str(tmp_path),
                         )
 
                         # Verify all report types generated
-                        assert 'html_report' in results
-                        assert 'pdf_report' in results
-                        assert 'json_data' in results
+                        assert "html_report" in results
+                        assert "pdf_report" in results
+                        assert "json_data" in results
 
                         # Verify paths
-                        assert results['html_report'].endswith('.html')
-                        assert results['pdf_report'].endswith('.pdf')
-                        assert results['json_data'].endswith('.json')
+                        assert results["html_report"].endswith(".html")
+                        assert results["pdf_report"].endswith(".pdf")
+                        assert results["json_data"].endswith(".json")
 
-    def test_generate_full_report_suite_with_incident(self, orchestrator, mock_metrics, mock_incident, tmp_path):
+    def test_generate_full_report_suite_with_incident(
+        self, orchestrator, mock_metrics, mock_incident, tmp_path
+    ):
         """Test report suite generation with incident analysis"""
-        with patch.object(orchestrator.metrics_generator, 'generate_metrics_with_trends', return_value=mock_metrics):
-            with patch.object(orchestrator.incident_generator, 'generate_incident_report', return_value=mock_incident):
-                with patch.object(orchestrator, 'create_html_report', return_value=str(tmp_path / "test.html")):
-                    with patch.object(orchestrator, 'create_pdf_report', return_value=str(tmp_path / "test.pdf")):
-                        with patch.object(orchestrator, 'export_json_data', return_value=str(tmp_path / "test.json")):
+        with patch.object(
+            orchestrator.metrics_generator,
+            "generate_metrics_with_trends",
+            return_value=mock_metrics,
+        ):
+            with patch.object(
+                orchestrator.incident_generator,
+                "generate_incident_report",
+                return_value=mock_incident,
+            ):
+                with patch.object(
+                    orchestrator, "create_html_report", return_value=str(tmp_path / "test.html")
+                ):
+                    with patch.object(
+                        orchestrator, "create_pdf_report", return_value=str(tmp_path / "test.pdf")
+                    ):
+                        with patch.object(
+                            orchestrator,
+                            "export_json_data",
+                            return_value=str(tmp_path / "test.json"),
+                        ):
 
                             results = orchestrator.generate_full_report_suite(
                                 application_name="TestApp",
                                 incident_time=datetime.now() - timedelta(hours=2),
                                 incident_duration=1.0,
-                                output_dir=str(tmp_path)
+                                output_dir=str(tmp_path),
                             )
 
                             # Verify incident generator was called
@@ -174,19 +201,26 @@ class TestReportOrchestratorFullReportSuite:
 
     def test_generate_full_report_suite_no_metrics(self, orchestrator, tmp_path):
         """Test report generation with no metrics"""
-        with patch.object(orchestrator.metrics_generator, 'generate_metrics_with_trends', return_value=[]):
-            with patch.object(orchestrator, 'create_html_report', return_value=str(tmp_path / "test.html")):
-                with patch.object(orchestrator, 'create_pdf_report', return_value=str(tmp_path / "test.pdf")):
-                    with patch.object(orchestrator, 'export_json_data', return_value=str(tmp_path / "test.json")):
+        with patch.object(
+            orchestrator.metrics_generator, "generate_metrics_with_trends", return_value=[]
+        ):
+            with patch.object(
+                orchestrator, "create_html_report", return_value=str(tmp_path / "test.html")
+            ):
+                with patch.object(
+                    orchestrator, "create_pdf_report", return_value=str(tmp_path / "test.pdf")
+                ):
+                    with patch.object(
+                        orchestrator, "export_json_data", return_value=str(tmp_path / "test.json")
+                    ):
 
                         results = orchestrator.generate_full_report_suite(
-                            application_name="TestApp",
-                            output_dir=str(tmp_path)
+                            application_name="TestApp", output_dir=str(tmp_path)
                         )
 
                         # Should still generate reports
-                        assert 'html_report' in results
-                        assert 'json_data' in results
+                        assert "html_report" in results
+                        assert "json_data" in results
 
 
 class TestReportOrchestratorHTMLReport:
@@ -209,7 +243,7 @@ class TestReportOrchestratorHTMLReport:
                 status="compliant",
                 timestamp=datetime.now(),
                 error_budget_consumed=10.0,
-                trend_data=[95, 98, 100, 102, 100]
+                trend_data=[95, 98, 100, 102, 100],
             )
         ]
 
@@ -217,16 +251,21 @@ class TestReportOrchestratorHTMLReport:
         """Test successful HTML report creation"""
         output_path = str(tmp_path / "test_report.html")
 
-        with patch.object(orchestrator.chart_generator, 'create_trend_visualizations', return_value={}):
-            with patch.object(orchestrator.llm_analyzer, 'analyze_performance_metrics', return_value="Analysis"):
-                with patch.object(orchestrator, '_load_html_template', return_value="<html>{{app_name}}</html>"):
-                    with patch('builtins.open', create=True) as mock_open:
+        with patch.object(
+            orchestrator.chart_generator, "create_trend_visualizations", return_value={}
+        ):
+            with patch.object(
+                orchestrator.llm_analyzer, "analyze_performance_metrics", return_value="Analysis"
+            ):
+                with patch.object(
+                    orchestrator, "_load_html_template", return_value="<html>{{app_name}}</html>"
+                ):
+                    with patch("builtins.open", create=True) as mock_open:
                         mock_file = MagicMock()
                         mock_open.return_value.__enter__.return_value = mock_file
 
                         result = orchestrator.create_html_report(
-                            metrics=mock_metrics,
-                            output_path=output_path
+                            metrics=mock_metrics, output_path=output_path
                         )
 
                         assert result == output_path
@@ -246,22 +285,26 @@ class TestReportOrchestratorHTMLReport:
             root_cause="Issue",
             resolution_steps=["Fixed"],
             lessons_learned="Lesson",
-            llm_analysis="Analysis"
+            llm_analysis="Analysis",
         )
 
         output_path = str(tmp_path / "test_report_incident.html")
 
-        with patch.object(orchestrator.chart_generator, 'create_trend_visualizations', return_value={}):
-            with patch.object(orchestrator.llm_analyzer, 'analyze_performance_metrics', return_value="Analysis"):
-                with patch.object(orchestrator, '_load_html_template', return_value="<html>{{app_name}}</html>"):
-                    with patch('builtins.open', create=True) as mock_open:
+        with patch.object(
+            orchestrator.chart_generator, "create_trend_visualizations", return_value={}
+        ):
+            with patch.object(
+                orchestrator.llm_analyzer, "analyze_performance_metrics", return_value="Analysis"
+            ):
+                with patch.object(
+                    orchestrator, "_load_html_template", return_value="<html>{{app_name}}</html>"
+                ):
+                    with patch("builtins.open", create=True) as mock_open:
                         mock_file = MagicMock()
                         mock_open.return_value.__enter__.return_value = mock_file
 
                         result = orchestrator.create_html_report(
-                            metrics=mock_metrics,
-                            incident=incident,
-                            output_path=output_path
+                            metrics=mock_metrics, incident=incident, output_path=output_path
                         )
 
                         assert result == output_path
@@ -287,7 +330,7 @@ class TestReportOrchestratorPDFReport:
                 status="compliant",
                 timestamp=datetime.now(),
                 error_budget_consumed=10.0,
-                trend_data=[95, 98, 100, 102, 100]
+                trend_data=[95, 98, 100, 102, 100],
             )
         ]
 
@@ -295,14 +338,21 @@ class TestReportOrchestratorPDFReport:
         """Test successful PDF report creation"""
         output_path = str(tmp_path / "test_report.pdf")
 
-        with patch.object(orchestrator.chart_generator, 'create_trend_visualizations', return_value={}):
-            with patch.object(orchestrator.llm_analyzer, 'analyze_performance_metrics', return_value="Analysis"):
-                with patch.object(orchestrator, '_load_html_template', return_value="<html>template</html>"):
-                    with patch.object(orchestrator.pdf_generator, 'create_enhanced_pdf', return_value=output_path):
+        with patch.object(
+            orchestrator.chart_generator, "create_trend_visualizations", return_value={}
+        ):
+            with patch.object(
+                orchestrator.llm_analyzer, "analyze_performance_metrics", return_value="Analysis"
+            ):
+                with patch.object(
+                    orchestrator, "_load_html_template", return_value="<html>template</html>"
+                ):
+                    with patch.object(
+                        orchestrator.pdf_generator, "create_enhanced_pdf", return_value=output_path
+                    ):
 
                         result = orchestrator.create_pdf_report(
-                            metrics=mock_metrics,
-                            output_path=output_path
+                            metrics=mock_metrics, output_path=output_path
                         )
 
                         assert result == output_path
@@ -312,14 +362,23 @@ class TestReportOrchestratorPDFReport:
         """Test PDF report returns empty string on failure"""
         output_path = str(tmp_path / "test_report.pdf")
 
-        with patch.object(orchestrator.chart_generator, 'create_trend_visualizations', return_value={}):
-            with patch.object(orchestrator.llm_analyzer, 'analyze_performance_metrics', return_value="Analysis"):
-                with patch.object(orchestrator, '_load_html_template', return_value="<html>template</html>"):
-                    with patch.object(orchestrator.pdf_generator, 'create_enhanced_pdf', side_effect=Exception("PDF failed")):
+        with patch.object(
+            orchestrator.chart_generator, "create_trend_visualizations", return_value={}
+        ):
+            with patch.object(
+                orchestrator.llm_analyzer, "analyze_performance_metrics", return_value="Analysis"
+            ):
+                with patch.object(
+                    orchestrator, "_load_html_template", return_value="<html>template</html>"
+                ):
+                    with patch.object(
+                        orchestrator.pdf_generator,
+                        "create_enhanced_pdf",
+                        side_effect=Exception("PDF failed"),
+                    ):
 
                         result = orchestrator.create_pdf_report(
-                            metrics=mock_metrics,
-                            output_path=output_path
+                            metrics=mock_metrics, output_path=output_path
                         )
 
                         # Should return empty string on failure
@@ -346,7 +405,7 @@ class TestReportOrchestratorJSONExport:
                 status="compliant",
                 timestamp=datetime.now(),
                 error_budget_consumed=10.0,
-                trend_data=[95, 98, 100, 102, 100]
+                trend_data=[95, 98, 100, 102, 100],
             )
         ]
 
@@ -354,23 +413,20 @@ class TestReportOrchestratorJSONExport:
         """Test successful JSON export"""
         output_path = str(tmp_path / "test_data.json")
 
-        result = orchestrator.export_json_data(
-            metrics=mock_metrics,
-            output_path=output_path
-        )
+        result = orchestrator.export_json_data(metrics=mock_metrics, output_path=output_path)
 
         # Verify file created
         assert Path(result).exists()
 
         # Verify JSON structure
-        with open(result, 'r') as f:
+        with open(result, "r") as f:
             data = json.load(f)
 
-        assert 'report_metadata' in data
-        assert 'slo_metrics' in data
-        assert 'summary' in data
-        assert data['report_metadata']['application_name'] == "TestApp"
-        assert len(data['slo_metrics']) == 1
+        assert "report_metadata" in data
+        assert "slo_metrics" in data
+        assert "summary" in data
+        assert data["report_metadata"]["application_name"] == "TestApp"
+        assert len(data["slo_metrics"]) == 1
 
     def test_export_json_with_incident(self, orchestrator, mock_metrics, tmp_path):
         """Test JSON export with incident data"""
@@ -386,26 +442,24 @@ class TestReportOrchestratorJSONExport:
             root_cause="Issue",
             resolution_steps=["Fixed"],
             lessons_learned="Lesson",
-            llm_analysis="Analysis"
+            llm_analysis="Analysis",
         )
 
         output_path = str(tmp_path / "test_data_incident.json")
 
         result = orchestrator.export_json_data(
-            metrics=mock_metrics,
-            incident=incident,
-            output_path=output_path
+            metrics=mock_metrics, incident=incident, output_path=output_path
         )
 
         # Verify file created
         assert Path(result).exists()
 
         # Verify incident included
-        with open(result, 'r') as f:
+        with open(result, "r") as f:
             data = json.load(f)
 
-        assert data['incident'] is not None
-        assert data['incident']['incident_id'] == "INC-001"
+        assert data["incident"] is not None
+        assert data["incident"]["incident_id"] == "INC-001"
 
 
 class TestReportOrchestratorSummaryStats:
@@ -428,7 +482,7 @@ class TestReportOrchestratorSummaryStats:
                 error_budget_consumed=10.0,
                 timestamp=datetime.now(),
                 unit="ms",
-                trend_data=[]
+                trend_data=[],
             ),
             SLOMetric(
                 service_name="api",
@@ -440,7 +494,7 @@ class TestReportOrchestratorSummaryStats:
                 error_budget_consumed=20.0,
                 timestamp=datetime.now(),
                 unit="%",
-                trend_data=[]
+                trend_data=[],
             ),
             SLOMetric(
                 service_name="db",
@@ -452,7 +506,7 @@ class TestReportOrchestratorSummaryStats:
                 error_budget_consumed=60.0,
                 timestamp=datetime.now(),
                 unit="ms",
-                trend_data=[]
+                trend_data=[],
             ),
             SLOMetric(
                 service_name="cache",
@@ -464,28 +518,28 @@ class TestReportOrchestratorSummaryStats:
                 error_budget_consumed=90.0,
                 timestamp=datetime.now(),
                 unit="ms",
-                trend_data=[]
+                trend_data=[],
             ),
         ]
 
         summary = orchestrator._create_summary_stats(metrics)
 
-        assert summary['total_services'] == 3  # api, db, cache
-        assert summary['total_metrics'] == 4
-        assert summary['compliant_count'] == 2
-        assert summary['at_risk_count'] == 1
-        assert summary['breached_count'] == 1
-        assert summary['compliance_percentage'] == 50.0
-        assert summary['health_status'] == 'Critical'
+        assert summary["total_services"] == 3  # api, db, cache
+        assert summary["total_metrics"] == 4
+        assert summary["compliant_count"] == 2
+        assert summary["at_risk_count"] == 1
+        assert summary["breached_count"] == 1
+        assert summary["compliance_percentage"] == 50.0
+        assert summary["health_status"] == "Critical"
 
     def test_create_summary_stats_empty_metrics(self, orchestrator):
         """Test summary statistics with no metrics"""
         summary = orchestrator._create_summary_stats([])
 
-        assert summary['total_services'] == 0
-        assert summary['total_metrics'] == 0
-        assert summary['compliant_count'] == 0
-        assert summary['health_status'] == 'No Data'
+        assert summary["total_services"] == 0
+        assert summary["total_metrics"] == 0
+        assert summary["compliant_count"] == 0
+        assert summary["health_status"] == "No Data"
 
 
 class TestReportOrchestratorComponentStatus:
@@ -498,20 +552,20 @@ class TestReportOrchestratorComponentStatus:
         status = orchestrator.get_component_status()
 
         # Verify structure
-        assert 'orchestrator' in status
-        assert 'components' in status
-        assert 'pdf_capabilities' in status
+        assert "orchestrator" in status
+        assert "components" in status
+        assert "pdf_capabilities" in status
 
         # Verify orchestrator info
-        assert status['orchestrator']['app_name'] == "TestApp"
-        assert status['orchestrator']['initialized'] is True
+        assert status["orchestrator"]["app_name"] == "TestApp"
+        assert status["orchestrator"]["initialized"] is True
 
         # Verify all components reported
-        components = status['components']
-        assert components['llm_analyzer'] is True
-        assert components['metrics_generator'] is True
-        assert components['chart_generator'] is True
-        assert components['pdf_generator'] is True
+        components = status["components"]
+        assert components["llm_analyzer"] is True
+        assert components["metrics_generator"] is True
+        assert components["chart_generator"] is True
+        assert components["pdf_generator"] is True
 
 
 # Test runner

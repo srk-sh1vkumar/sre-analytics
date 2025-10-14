@@ -4,12 +4,11 @@ Tests for API Authentication and Authorization
 Tests API key management, validation, and rate limiting.
 """
 
-import pytest
 from datetime import datetime, timedelta
-from src.api.auth import (
-    APIKeyManager, APIKey, RateLimiter,
-    Role, has_permission
-)
+
+import pytest
+
+from src.api.auth import APIKey, APIKeyManager, RateLimiter, Role, has_permission
 
 
 @pytest.fixture
@@ -29,11 +28,7 @@ class TestAPIKeyManager:
 
     def test_generate_key(self, key_manager):
         """Test generating new API key"""
-        raw_key, api_key = key_manager.generate_key(
-            name="Test Key",
-            role=Role.READ,
-            rate_limit=100
-        )
+        raw_key, api_key = key_manager.generate_key(name="Test Key", role=Role.READ, rate_limit=100)
 
         assert raw_key.startswith("sre_")
         assert len(raw_key) > 20
@@ -130,11 +125,7 @@ class TestAPIKeyManager:
     def test_custom_metadata(self, key_manager):
         """Test adding custom metadata to keys"""
         metadata = {"team": "platform", "environment": "production"}
-        raw_key, api_key = key_manager.generate_key(
-            "Test",
-            Role.READ,
-            metadata=metadata
-        )
+        raw_key, api_key = key_manager.generate_key("Test", Role.READ, metadata=metadata)
 
         assert api_key.metadata == metadata
 

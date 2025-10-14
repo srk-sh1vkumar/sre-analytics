@@ -5,18 +5,25 @@ Provides decorators and utilities for consistent error handling with
 retry logic, fallback strategies, and error context.
 """
 
+import functools
 import logging
 import time
-import functools
-from typing import Callable, Optional, Type, Tuple, Any, Dict, TypeVar, cast, List
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, cast
+
 from src.exceptions import (
-    SREAnalyticsError, APIError, APITimeoutError, APIRateLimitError,
-    APIConnectionError, LLMError, LLMRateLimitError, FileOperationError
+    APIConnectionError,
+    APIError,
+    APIRateLimitError,
+    APITimeoutError,
+    FileOperationError,
+    LLMError,
+    LLMRateLimitError,
+    SREAnalyticsError,
 )
 
 # Type variables for generic function signatures
-T = TypeVar('T')
-F = TypeVar('F', bound=Callable[..., Any])
+T = TypeVar("T")
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 logger = logging.getLogger(__name__)
@@ -26,12 +33,13 @@ logger = logging.getLogger(__name__)
 # Retry Decorators
 # ============================================================================
 
+
 def retry_on_error(
     max_attempts: int = 3,
     delay_seconds: float = 1.0,
     backoff_multiplier: float = 2.0,
     retry_on: Tuple[Type[Exception], ...] = (APIConnectionError, APITimeoutError),
-    raise_on: Tuple[Type[Exception], ...] = ()
+    raise_on: Tuple[Type[Exception], ...] = (),
 ) -> Callable[[F], F]:
     """
     Decorator to retry function on specific exceptions
@@ -48,6 +56,7 @@ def retry_on_error(
         def fetch_data():
             return api.get_data()
     """
+
     def decorator(func: F) -> F:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -66,22 +75,21 @@ def retry_on_error(
                     if attempt == max_attempts:
                         logger.error(
                             f"{func.__name__} failed after {max_attempts} attempts: {e}",
-                            extra={'attempts': max_attempts, 'function': func.__name__}
+                            extra={"attempts": max_attempts, "function": func.__name__},
                         )
                         break
 
                     logger.warning(
                         f"{func.__name__} failed on attempt {attempt}/{max_attempts}: {e}. "
                         f"Retrying in {current_delay}s...",
-                        extra={'attempt': attempt, 'delay': current_delay}
+                        extra={"attempt": attempt, "delay": current_delay},
                     )
                     time.sleep(current_delay)
                     current_delay *= backoff_multiplier
                 except Exception as e:
                     # Unexpected exception - log and re-raise
                     logger.error(
-                        f"{func.__name__} failed with unexpected error: {e}",
-                        exc_info=True
+                        f"{func.__name__} failed with unexpected error: {e}", exc_info=True
                     )
                     raise
 
@@ -90,13 +98,14 @@ def retry_on_error(
                 raise last_exception
 
         return cast(F, wrapper)
+
     return decorator
 
 
 def retry_with_fallback(
     fallback_func: Callable[..., T],
     max_attempts: int = 3,
-    retry_on: Tuple[Type[Exception], ...] = (APIError, LLMError)
+    retry_on: Tuple[Type[Exception], ...] = (APIError, LLMError),
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """
     Decorator to retry with fallback function on failure
@@ -114,6 +123,7 @@ def retry_with_fallback(
         def llm_analysis():
             return llm.analyze()
     """
+
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> T:
@@ -125,14 +135,13 @@ def retry_with_fallback(
                         logger.warning(
                             f"{func.__name__} failed after {max_attempts} attempts. "
                             f"Using fallback function.",
-                            extra={'error': str(e)}
+                            extra={"error": str(e)},
                         )
                         try:
                             return fallback_func(*args, **kwargs)
                         except Exception as fallback_error:
                             logger.error(
-                                f"Fallback function also failed: {fallback_error}",
-                                exc_info=True
+                                f"Fallback function also failed: {fallback_error}", exc_info=True
                             )
                             raise
 
@@ -143,12 +152,14 @@ def retry_with_fallback(
             raise RuntimeError("Unexpected state in retry_with_fallback")
 
         return wrapper
+
     return decorator
 
 
 # ============================================================================
 # Error Context Managers
 # ============================================================================
+
 
 class ErrorContext:
     """
@@ -171,19 +182,18 @@ class ErrorContext:
         self.context = context
         self.logger = logging.getLogger(__name__)
 
-    def __enter__(self) -> 'ErrorContext':
-        self.logger.debug(
-            f"Starting: {self.operation}",
-            extra=self.context
-        )
+    def __enter__(self) -> "ErrorContext":
+        self.logger.debug(f"Starting: {self.operation}", extra=self.context)
         return self
 
-    def __exit__(self, exc_type: Optional[Type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[Any]) -> None:
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[Any],
+    ) -> None:
         if exc_type is None:
-            self.logger.debug(
-                f"Completed: {self.operation}",
-                extra=self.context
-            )
+            self.logger.debug(f"Completed: {self.operation}", extra=self.context)
             return
 
         # Log error with full context
@@ -191,10 +201,10 @@ class ErrorContext:
             f"Error during {self.operation}: {exc_val}",
             extra={
                 **self.context,
-                'exception_type': exc_type.__name__,
-                'operation': self.operation
+                "exception_type": exc_type.__name__,
+                "operation": self.operation,
             },
-            exc_info=True
+            exc_info=True,
         )
 
 
@@ -202,11 +212,12 @@ class ErrorContext:
 # Error Handling Utilities
 # ============================================================================
 
+
 def safe_execute(
     func: Callable[[], T],
     default_value: Optional[T] = None,
     log_errors: bool = True,
-    context: Optional[Dict[str, Any]] = None
+    context: Optional[Dict[str, Any]] = None,
 ) -> Optional[T]:
     """
     Safely execute a function with error handling
@@ -231,15 +242,13 @@ def safe_execute(
         return func()
     except Exception as e:
         if log_errors:
-            logger.error(
-                f"Error in safe_execute: {e}",
-                extra=context or {},
-                exc_info=True
-            )
+            logger.error(f"Error in safe_execute: {e}", extra=context or {}, exc_info=True)
         return default_value
 
 
-def handle_api_error(response_status: int, response_body: str, context: Optional[Dict[str, Any]] = None) -> None:
+def handle_api_error(
+    response_status: int, response_body: str, context: Optional[Dict[str, Any]] = None
+) -> None:
     """
     Convert HTTP status codes to appropriate API exceptions
 
@@ -252,64 +261,69 @@ def handle_api_error(response_status: int, response_body: str, context: Optional
         Appropriate APIError subclass
     """
     from src.config.constants import (
-        HTTP_UNAUTHORIZED, HTTP_FORBIDDEN, HTTP_NOT_FOUND,
-        HTTP_SERVER_ERROR, HTTP_SERVICE_UNAVAILABLE
+        HTTP_FORBIDDEN,
+        HTTP_NOT_FOUND,
+        HTTP_SERVER_ERROR,
+        HTTP_SERVICE_UNAVAILABLE,
+        HTTP_UNAUTHORIZED,
     )
 
     ctx = context or {}
-    ctx['status_code'] = response_status
+    ctx["status_code"] = response_status
 
     if response_status == HTTP_UNAUTHORIZED:
         from src.exceptions import APIAuthenticationError
+
         raise APIAuthenticationError(
             "API authentication failed",
             status_code=response_status,
             response_body=response_body,
-            context=ctx
+            context=ctx,
         )
     elif response_status == HTTP_FORBIDDEN:
         from src.exceptions import APIAuthorizationError
+
         raise APIAuthorizationError(
             "API authorization failed - insufficient permissions",
             status_code=response_status,
             response_body=response_body,
-            context=ctx
+            context=ctx,
         )
     elif response_status == HTTP_NOT_FOUND:
         from src.exceptions import ResourceNotFoundError
-        raise ResourceNotFoundError(
-            "API resource not found",
-            context=ctx
-        )
+
+        raise ResourceNotFoundError("API resource not found", context=ctx)
     elif response_status == 429:  # Rate limit
         raise APIRateLimitError(
             "API rate limit exceeded",
             status_code=response_status,
             response_body=response_body,
-            context=ctx
+            context=ctx,
         )
     elif response_status == 408:  # Request timeout
         raise APITimeoutError(
             "API request timed out",
             status_code=response_status,
             response_body=response_body,
-            context=ctx
+            context=ctx,
         )
     elif response_status >= HTTP_SERVER_ERROR:
         from src.exceptions import APIResponseError
+
         raise APIResponseError(
             f"API server error: {response_status}",
             status_code=response_status,
             response_body=response_body,
-            context=ctx
+            context=ctx,
         )
     else:
         from src.exceptions import APIResponseError
+
         raise APIResponseError(
             f"API request failed with status {response_status}",
             status_code=response_status,
             response_body=response_body,
-            context=ctx
+            context=ctx,
         )
 
 
@@ -318,7 +332,7 @@ def log_exception_with_context(
     logger_instance: logging.Logger,
     operation: str,
     context: Optional[Dict[str, Any]] = None,
-    level: int = logging.ERROR
+    level: int = logging.ERROR,
 ) -> None:
     """
     Log exception with full context
@@ -339,12 +353,8 @@ def log_exception_with_context(
     logger_instance.log(
         level,
         f"Operation '{operation}' failed: {exc}",
-        extra={
-            **ctx,
-            'exception_type': type(exc).__name__,
-            'operation': operation
-        },
-        exc_info=True
+        extra={**ctx, "exception_type": type(exc).__name__, "operation": operation},
+        exc_info=True,
     )
 
 
@@ -352,7 +362,10 @@ def log_exception_with_context(
 # Validation Helpers
 # ============================================================================
 
-def validate_required_fields(data: Dict[str, Any], required_fields: List[str], context_name: str = "data") -> None:
+
+def validate_required_fields(
+    data: Dict[str, Any], required_fields: List[str], context_name: str = "data"
+) -> None:
     """
     Validate that required fields are present
 
@@ -366,12 +379,14 @@ def validate_required_fields(data: Dict[str, Any], required_fields: List[str], c
     """
     from src.exceptions import InputValidationError
 
-    missing_fields = [field for field in required_fields if field not in data or data[field] is None]
+    missing_fields = [
+        field for field in required_fields if field not in data or data[field] is None
+    ]
 
     if missing_fields:
         raise InputValidationError(
             f"Missing required fields in {context_name}",
-            context={'missing_fields': missing_fields, 'provided_fields': list(data.keys())}
+            context={"missing_fields": missing_fields, "provided_fields": list(data.keys())},
         )
 
 
@@ -380,7 +395,7 @@ def validate_config_value(
     key: str,
     expected_type: Optional[Type[Any]] = None,
     required: bool = True,
-    default: Optional[Any] = None
+    default: Optional[Any] = None,
 ) -> Any:
     """
     Validate and retrieve configuration value
@@ -399,13 +414,13 @@ def validate_config_value(
         MissingConfigError: If required config is missing
         InvalidConfigError: If config value is invalid type
     """
-    from src.exceptions import MissingConfigError, InvalidConfigError
+    from src.exceptions import InvalidConfigError, MissingConfigError
 
     if key not in config_dict:
         if required:
             raise MissingConfigError(
                 f"Required configuration '{key}' is missing",
-                context={'config_dict_keys': list(config_dict.keys())}
+                context={"config_dict_keys": list(config_dict.keys())},
             )
         return default
 
@@ -415,10 +430,10 @@ def validate_config_value(
         raise InvalidConfigError(
             f"Configuration '{key}' has invalid type",
             context={
-                'expected_type': expected_type.__name__,
-                'actual_type': type(value).__name__,
-                'value': str(value)
-            }
+                "expected_type": expected_type.__name__,
+                "actual_type": type(value).__name__,
+                "value": str(value),
+            },
         )
 
     return value

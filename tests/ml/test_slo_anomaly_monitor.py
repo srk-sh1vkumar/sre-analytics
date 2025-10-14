@@ -4,20 +4,19 @@ Tests for SLO Anomaly Monitor
 Tests integration of anomaly detection with SLO monitoring.
 """
 
-import pytest
 from datetime import datetime, timedelta
-from src.ml.slo_anomaly_monitor import SLOAnomalyMonitor, SLOAnomalyReport
+
+import pytest
+
 from src.ml.anomaly_detector import AnomalyDetector, AnomalyMethod
+from src.ml.slo_anomaly_monitor import SLOAnomalyMonitor, SLOAnomalyReport
 from src.reports.llm_analyzer import SLOMetric
 
 
 @pytest.fixture
 def monitor():
     """Create SLO anomaly monitor"""
-    return SLOAnomalyMonitor(
-        enable_predictions=True,
-        alert_lead_time_minutes=30
-    )
+    return SLOAnomalyMonitor(enable_predictions=True, alert_lead_time_minutes=30)
 
 
 @pytest.fixture
@@ -40,7 +39,7 @@ def healthy_slo_metric():
         status="healthy",
         error_budget_consumed=20.0,
         trend_data=trend_data,
-        timestamp=datetime.now()
+        timestamp=datetime.now(),
     )
 
 
@@ -58,7 +57,7 @@ def at_risk_slo_metric():
         status="at_risk",
         error_budget_consumed=85.0,
         trend_data=trend_data,
-        timestamp=datetime.now()
+        timestamp=datetime.now(),
     )
 
 
@@ -76,7 +75,7 @@ def breached_slo_metric():
         status="breached",
         error_budget_consumed=100.0,
         trend_data=trend_data,
-        timestamp=datetime.now()
+        timestamp=datetime.now(),
     )
 
 
@@ -95,7 +94,7 @@ def anomalous_slo_metric():
         status="healthy",
         error_budget_consumed=30.0,
         trend_data=trend_data,
-        timestamp=datetime.now()
+        timestamp=datetime.now(),
     )
 
 
@@ -104,10 +103,7 @@ class TestSLOAnomalyMonitor:
 
     def test_initialization(self):
         """Test monitor initializes correctly"""
-        monitor = SLOAnomalyMonitor(
-            enable_predictions=True,
-            alert_lead_time_minutes=60
-        )
+        monitor = SLOAnomalyMonitor(enable_predictions=True, alert_lead_time_minutes=60)
         assert monitor.enable_predictions is True
         assert monitor.alert_lead_time_minutes == 60
         assert isinstance(monitor.detector, AnomalyDetector)
@@ -186,7 +182,7 @@ class TestAnalyzeSLOMetrics:
             status="healthy",
             error_budget_consumed=20.0,
             trend_data=[95.0, 96.0],  # Only 2 points
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
         reports = monitor.analyze_slo_metrics([metric])
@@ -204,7 +200,7 @@ class TestAnalyzeSLOMetrics:
             status="healthy",
             error_budget_consumed=20.0,
             trend_data=[],
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
         reports = monitor.analyze_slo_metrics([metric])
@@ -236,9 +232,7 @@ class TestRecommendationGeneration:
 
     def test_healthy_recommendations(self, monitor, healthy_slo_metric):
         """Test recommendations for healthy metric"""
-        recommendations = monitor._generate_recommendations(
-            healthy_slo_metric, [], {}
-        )
+        recommendations = monitor._generate_recommendations(healthy_slo_metric, [], {})
 
         assert len(recommendations) > 0
         # Should have "operating normally" message
@@ -246,9 +240,7 @@ class TestRecommendationGeneration:
 
     def test_at_risk_recommendations(self, monitor, at_risk_slo_metric):
         """Test recommendations for at-risk metric"""
-        recommendations = monitor._generate_recommendations(
-            at_risk_slo_metric, [], {}
-        )
+        recommendations = monitor._generate_recommendations(at_risk_slo_metric, [], {})
 
         assert len(recommendations) > 0
         # Should mention error budget
@@ -256,9 +248,7 @@ class TestRecommendationGeneration:
 
     def test_breached_recommendations(self, monitor, breached_slo_metric):
         """Test recommendations for breached metric"""
-        recommendations = monitor._generate_recommendations(
-            breached_slo_metric, [], {}
-        )
+        recommendations = monitor._generate_recommendations(breached_slo_metric, [], {})
 
         assert len(recommendations) > 0
         # Should have critical alert
@@ -269,21 +259,17 @@ class TestRecommendationGeneration:
         prediction = {
             "will_breach": True,
             "confidence": 0.85,
-            "forecast_time": datetime.now() + timedelta(minutes=25)
+            "forecast_time": datetime.now() + timedelta(minutes=25),
         }
 
-        recommendations = monitor._generate_recommendations(
-            healthy_slo_metric, [], prediction
-        )
+        recommendations = monitor._generate_recommendations(healthy_slo_metric, [], prediction)
 
         # Should have prediction warning
         assert any("predicted" in rec.lower() for rec in recommendations)
 
     def test_trending_up_recommendations(self, monitor, at_risk_slo_metric):
         """Test recommendations for upward trend"""
-        recommendations = monitor._generate_recommendations(
-            at_risk_slo_metric, [], {}
-        )
+        recommendations = monitor._generate_recommendations(at_risk_slo_metric, [], {})
 
         # Should detect upward trend
         assert any("trending" in rec.lower() for rec in recommendations)
@@ -338,7 +324,7 @@ class TestTimestampGeneration:
         assert timestamps[-1] == end_time
         # Check spacing
         for i in range(1, len(timestamps)):
-            diff = (timestamps[i] - timestamps[i-1]).total_seconds() / 60
+            diff = (timestamps[i] - timestamps[i - 1]).total_seconds() / 60
             assert diff == pytest.approx(interval_minutes, abs=1)
 
     def test_single_timestamp(self, monitor):
@@ -369,6 +355,7 @@ class TestSummaryReport:
         if len(reports) == 0:
             # No anomalies/predictions, create mock report for testing
             from src.ml.slo_anomaly_monitor import SLOAnomalyReport
+
             report = SLOAnomalyReport(
                 service_name="test-service",
                 metric_name="response_time",
@@ -376,7 +363,7 @@ class TestSummaryReport:
                 baseline_health="healthy",
                 prediction={},
                 recommendations=["✅ Operating normally"],
-                generated_at=datetime.now()
+                generated_at=datetime.now(),
             )
             reports = [report]
 
@@ -401,7 +388,7 @@ class TestSummaryReport:
                 baseline_health="healthy",
                 prediction={},
                 recommendations=[],
-                generated_at=datetime.now()
+                generated_at=datetime.now(),
             )
             for i in range(5)
         ]
@@ -427,8 +414,7 @@ class TestDetectionMethods:
     def test_z_score_method(self, monitor, anomalous_slo_metric):
         """Test Z-score detection method"""
         reports = monitor.analyze_slo_metrics(
-            [anomalous_slo_metric],
-            detection_method=AnomalyMethod.Z_SCORE
+            [anomalous_slo_metric], detection_method=AnomalyMethod.Z_SCORE
         )
 
         # Should detect anomaly
@@ -438,8 +424,7 @@ class TestDetectionMethods:
     def test_modified_z_score_method(self, monitor, anomalous_slo_metric):
         """Test Modified Z-score detection method"""
         reports = monitor.analyze_slo_metrics(
-            [anomalous_slo_metric],
-            detection_method=AnomalyMethod.MODIFIED_Z_SCORE
+            [anomalous_slo_metric], detection_method=AnomalyMethod.MODIFIED_Z_SCORE
         )
 
         if len(reports) > 0:
@@ -448,8 +433,7 @@ class TestDetectionMethods:
     def test_iqr_method(self, monitor, anomalous_slo_metric):
         """Test IQR detection method"""
         reports = monitor.analyze_slo_metrics(
-            [anomalous_slo_metric],
-            detection_method=AnomalyMethod.IQR
+            [anomalous_slo_metric], detection_method=AnomalyMethod.IQR
         )
 
         if len(reports) > 0:
@@ -485,8 +469,8 @@ class TestReportAttributes:
     def test_report_has_required_fields(self, monitor):
         """Test report has all required fields"""
         # Create metric guaranteed to generate report (breached status)
+        from src.ml.anomaly_detector import Anomaly, AnomalyMethod, AnomalySeverity
         from src.ml.slo_anomaly_monitor import SLOAnomalyReport
-        from src.ml.anomaly_detector import Anomaly, AnomalySeverity, AnomalyMethod
 
         # Create a breached metric to ensure report generation
         metric = SLOMetric(
@@ -499,7 +483,7 @@ class TestReportAttributes:
             status="breached",
             error_budget_consumed=100.0,
             trend_data=[150.0] * 50,
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
         reports = monitor.analyze_slo_metrics([metric])

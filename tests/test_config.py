@@ -2,13 +2,21 @@
 Tests for configuration modules
 """
 
-import pytest
 import os
-from src.config.app_config import (
-    AppDynamicsConfig, LLMConfig, ReportConfig, FlaskConfig,
-    SystemConfig, Config, get_config, reload_config
-)
+
+import pytest
+
 from src.config import constants
+from src.config.app_config import (
+    AppDynamicsConfig,
+    Config,
+    FlaskConfig,
+    LLMConfig,
+    ReportConfig,
+    SystemConfig,
+    get_config,
+    reload_config,
+)
 from src.exceptions import MissingConfigError
 
 
@@ -21,7 +29,7 @@ class TestAppDynamicsConfig:
             controller_host="test.appdynamics.com",
             client_id="test-id",
             client_secret="test-secret",
-            primary_app="TestApp"
+            primary_app="TestApp",
         )
 
         assert config.controller_host == "test.appdynamics.com"
@@ -51,10 +59,7 @@ class TestLLMConfig:
 
     def test_create_config_with_both_keys(self):
         """Test creating LLM config with both API keys"""
-        config = LLMConfig(
-            openai_api_key="openai-key",
-            anthropic_api_key="anthropic-key"
-        )
+        config = LLMConfig(openai_api_key="openai-key", anthropic_api_key="anthropic-key")
 
         assert config.openai_api_key == "openai-key"
         assert config.anthropic_api_key == "anthropic-key"
@@ -79,10 +84,7 @@ class TestReportConfig:
 
     def test_create_config(self):
         """Test creating report config"""
-        config = ReportConfig(
-            output_path="/tmp/reports",
-            enable_llm_analysis=True
-        )
+        config = ReportConfig(output_path="/tmp/reports", enable_llm_analysis=True)
 
         assert config.output_path == "/tmp/reports"
         assert config.enable_llm_analysis is True
@@ -96,12 +98,12 @@ class TestReportConfig:
 
     def test_from_env(self, monkeypatch):
         """Test loading from environment"""
-        monkeypatch.setenv('REPORT_OUTPUT_PATH', '/custom/path')
-        monkeypatch.setenv('ENABLE_LLM_ANALYSIS', 'false')
+        monkeypatch.setenv("REPORT_OUTPUT_PATH", "/custom/path")
+        monkeypatch.setenv("ENABLE_LLM_ANALYSIS", "false")
 
         config = ReportConfig.from_env()
 
-        assert config.output_path == '/custom/path'
+        assert config.output_path == "/custom/path"
         assert config.enable_llm_analysis is False
 
 
@@ -110,10 +112,7 @@ class TestFlaskConfig:
 
     def test_create_config(self):
         """Test creating Flask config"""
-        config = FlaskConfig(
-            secret_key="test-secret",
-            debug=True
-        )
+        config = FlaskConfig(secret_key="test-secret", debug=True)
 
         assert config.secret_key == "test-secret"
         assert config.debug is True
@@ -138,8 +137,7 @@ class TestSystemConfig:
     def test_create_config(self):
         """Test creating system config"""
         config = SystemConfig(
-            pkg_config_path="/usr/local/lib/pkgconfig",
-            dyld_library_path="/usr/local/lib"
+            pkg_config_path="/usr/local/lib/pkgconfig", dyld_library_path="/usr/local/lib"
         )
 
         assert config.pkg_config_path == "/usr/local/lib/pkgconfig"
@@ -147,27 +145,33 @@ class TestSystemConfig:
 
     def test_from_env(self, monkeypatch):
         """Test loading from environment"""
-        monkeypatch.setenv('PKG_CONFIG_PATH', '/custom/pkg-config')
-        monkeypatch.setenv('DYLD_LIBRARY_PATH', '/custom/lib')
+        monkeypatch.setenv("PKG_CONFIG_PATH", "/custom/pkg-config")
+        monkeypatch.setenv("DYLD_LIBRARY_PATH", "/custom/lib")
 
         config = SystemConfig.from_env()
 
-        assert config.pkg_config_path == '/custom/pkg-config'
-        assert config.dyld_library_path == '/custom/lib'
+        assert config.pkg_config_path == "/custom/pkg-config"
+        assert config.dyld_library_path == "/custom/lib"
 
 
 class TestConfig:
     """Tests for main Config class"""
 
-    def test_create_config(self, mock_appdynamics_config, mock_llm_config,
-                          mock_report_config, mock_flask_config, mock_system_config):
+    def test_create_config(
+        self,
+        mock_appdynamics_config,
+        mock_llm_config,
+        mock_report_config,
+        mock_flask_config,
+        mock_system_config,
+    ):
         """Test creating complete config"""
         config = Config(
             appdynamics=mock_appdynamics_config,
             llm=mock_llm_config,
             report=mock_report_config,
             flask=mock_flask_config,
-            system=mock_system_config
+            system=mock_system_config,
         )
 
         assert config.appdynamics == mock_appdynamics_config
@@ -261,40 +265,40 @@ class TestConstants:
 
     def test_status_categories(self):
         """Test status category constants"""
-        assert constants.STATUS_COMPLIANT == 'compliant'
-        assert constants.STATUS_AT_RISK == 'at_risk'
-        assert constants.STATUS_BREACHED == 'breached'
+        assert constants.STATUS_COMPLIANT == "compliant"
+        assert constants.STATUS_AT_RISK == "at_risk"
+        assert constants.STATUS_BREACHED == "breached"
 
     def test_metric_names(self):
         """Test metric name constants"""
-        assert constants.METRIC_AVAILABILITY == 'availability'
-        assert constants.METRIC_LATENCY_P95 == 'latency_p95'
-        assert constants.METRIC_LATENCY_P99 == 'latency_p99'
-        assert constants.METRIC_ERROR_RATE == 'error_rate'
+        assert constants.METRIC_AVAILABILITY == "availability"
+        assert constants.METRIC_LATENCY_P95 == "latency_p95"
+        assert constants.METRIC_LATENCY_P99 == "latency_p99"
+        assert constants.METRIC_ERROR_RATE == "error_rate"
 
     def test_severity_levels(self):
         """Test incident severity constants"""
-        assert constants.SEVERITY_CRITICAL == 'Critical'
-        assert constants.SEVERITY_HIGH == 'High'
-        assert constants.SEVERITY_MEDIUM == 'Medium'
-        assert constants.SEVERITY_LOW == 'Low'
+        assert constants.SEVERITY_CRITICAL == "Critical"
+        assert constants.SEVERITY_HIGH == "High"
+        assert constants.SEVERITY_MEDIUM == "Medium"
+        assert constants.SEVERITY_LOW == "Low"
 
     def test_health_status(self):
         """Test health status constants"""
-        assert constants.HEALTH_HEALTHY == 'Healthy'
-        assert constants.HEALTH_DEGRADED == 'Degraded'
-        assert constants.HEALTH_UNHEALTHY == 'Unhealthy'
+        assert constants.HEALTH_HEALTHY == "Healthy"
+        assert constants.HEALTH_DEGRADED == "Degraded"
+        assert constants.HEALTH_UNHEALTHY == "Unhealthy"
 
     def test_llm_providers(self):
         """Test LLM provider constants"""
-        assert constants.LLM_PROVIDER_OPENAI == 'openai'
-        assert constants.LLM_PROVIDER_ANTHROPIC == 'anthropic'
+        assert constants.LLM_PROVIDER_OPENAI == "openai"
+        assert constants.LLM_PROVIDER_ANTHROPIC == "anthropic"
 
     def test_llm_models(self):
         """Test LLM model constants"""
-        assert constants.LLM_MODEL_GPT4 == 'gpt-4'
-        assert constants.LLM_MODEL_GPT35 == 'gpt-3.5-turbo'
-        assert 'claude' in constants.LLM_MODEL_CLAUDE_SONNET
+        assert constants.LLM_MODEL_GPT4 == "gpt-4"
+        assert constants.LLM_MODEL_GPT35 == "gpt-3.5-turbo"
+        assert "claude" in constants.LLM_MODEL_CLAUDE_SONNET
 
     def test_constants_are_final(self):
         """Test that constants cannot be modified (type check)"""
@@ -302,5 +306,5 @@ class TestConstants:
 
         # This just verifies the constants module has Final annotations
         # Actual immutability is enforced by Python's Final type hint
-        assert hasattr(constants, 'DEFAULT_TREND_DAYS')
-        assert hasattr(constants, 'AVAILABILITY_MIN')
+        assert hasattr(constants, "DEFAULT_TREND_DAYS")
+        assert hasattr(constants, "AVAILABILITY_MIN")

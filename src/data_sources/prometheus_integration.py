@@ -10,14 +10,15 @@ Reuses infrastructure from AppDynamics integration but optimized for Prometheus 
 import logging
 import time
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Any
+from typing import Any, Dict, List, Optional
+
+from ..reports.llm_analyzer import SLOMetric
 
 # Reuse rate limiter and cache from AppDynamics integration
-from .appdynamics_integration import RateLimiter, MetricsCache
+from .appdynamics_integration import MetricsCache, RateLimiter
+from .base import DataSourceConfig, MetricType, QueryParams, StandardMetric
 from .prometheus_adapter import PrometheusAdapter
 from .prometheus_slo_mapper import PrometheusSLOMapper
-from .base import DataSourceConfig, QueryParams, StandardMetric, MetricType
-from ..reports.llm_analyzer import SLOMetric
 
 
 class PrometheusIntegration:
@@ -33,7 +34,7 @@ class PrometheusIntegration:
         slo_targets: Optional[Dict[str, Dict[str, float]]] = None,
         rate_limit_calls: int = 100,
         rate_limit_window: int = 60,
-        cache_ttl: int = 300
+        cache_ttl: int = 300,
     ):
         """
         Initialize Prometheus integration
@@ -60,12 +61,10 @@ class PrometheusIntegration:
             "cache_misses": 0,
             "api_calls": 0,
             "errors": 0,
-            "last_query_time": None
+            "last_query_time": None,
         }
 
-        self.logger.info(
-            f"Prometheus integration initialized for {config.name}"
-        )
+        self.logger.info(f"Prometheus integration initialized for {config.name}")
 
     def connect(self) -> bool:
         """Establish connection to Prometheus"""
@@ -86,7 +85,7 @@ class PrometheusIntegration:
         start_time: Optional[datetime] = None,
         end_time: Optional[datetime] = None,
         metric_types: Optional[List[MetricType]] = None,
-        use_cache: bool = True
+        use_cache: bool = True,
     ) -> List[SLOMetric]:
         """
         Get SLO metrics for specified services from Prometheus
@@ -127,9 +126,7 @@ class PrometheusIntegration:
             )
 
             # Map to SLO metrics
-            slo_metrics = self.mapper.map_to_slo_metrics(
-                standard_metrics, calculate_trends=True
-            )
+            slo_metrics = self.mapper.map_to_slo_metrics(standard_metrics, calculate_trends=True)
 
             # Cache results
             if use_cache:
@@ -153,7 +150,7 @@ class PrometheusIntegration:
         services: List[str],
         start_time: datetime,
         end_time: datetime,
-        metric_types: Optional[List[MetricType]]
+        metric_types: Optional[List[MetricType]],
     ) -> List[StandardMetric]:
         """Query Prometheus with rate limiting"""
 
@@ -163,10 +160,7 @@ class PrometheusIntegration:
 
         # Create query params
         params = QueryParams(
-            start_time=start_time,
-            end_time=end_time,
-            services=services,
-            metric_types=metric_types
+            start_time=start_time, end_time=end_time, services=services, metric_types=metric_types
         )
 
         # Execute query
@@ -175,9 +169,7 @@ class PrometheusIntegration:
 
         return standard_metrics
 
-    def get_service_health_report(
-        self, service_name: str, hours_back: int = 24
-    ) -> Dict[str, Any]:
+    def get_service_health_report(self, service_name: str, hours_back: int = 24) -> Dict[str, Any]:
         """
         Get comprehensive health report for a service from Prometheus
 
@@ -193,15 +185,11 @@ class PrometheusIntegration:
 
         # Get SLO metrics
         slo_metrics = self.get_slo_metrics_for_services(
-            services=[service_name],
-            start_time=start_time,
-            end_time=end_time
+            services=[service_name], start_time=start_time, end_time=end_time
         )
 
         # Calculate health score
-        health_score = self.mapper.calculate_service_health_score(
-            slo_metrics, service_name
-        )
+        health_score = self.mapper.calculate_service_health_score(slo_metrics, service_name)
 
         # Organize metrics by type
         metrics_by_type = {}
@@ -212,7 +200,7 @@ class PrometheusIntegration:
                 "status": metric.status,
                 "error_budget_consumed": metric.error_budget_consumed,
                 "unit": metric.unit,
-                "trend": metric.trend_data[-5:] if metric.trend_data else []
+                "trend": metric.trend_data[-5:] if metric.trend_data else [],
             }
 
         # Generate insights
@@ -224,18 +212,16 @@ class PrometheusIntegration:
             "time_range": {
                 "start": start_time.isoformat(),
                 "end": end_time.isoformat(),
-                "hours": hours_back
+                "hours": hours_back,
             },
             "health_score": health_score,
             "metrics": metrics_by_type,
             "insights": insights,
             "total_metrics": len(slo_metrics),
-            "data_source": "Prometheus"
+            "data_source": "Prometheus",
         }
 
-    def query_promql(
-        self, query: str, time: Optional[datetime] = None
-    ) -> Dict[str, Any]:
+    def query_promql(self, query: str, time: Optional[datetime] = None) -> Dict[str, Any]:
         """
         Execute a raw PromQL query
 
@@ -253,11 +239,8 @@ class PrometheusIntegration:
 
             time_param = time.timestamp() if time else datetime.now().timestamp()
 
-            url = urljoin(self.adapter.base_url, '/api/v1/query')
-            params = {
-                'query': query,
-                'time': time_param
-            }
+            url = urljoin(self.adapter.base_url, "/api/v1/query")
+            params = {"query": query, "time": time_param}
 
             # Apply rate limiting
             self._wait_if_needed = self.rate_limiter._wait_if_needed
@@ -311,13 +294,9 @@ class PrometheusIntegration:
         for metric in slo_metrics:
             if metric.trend_data and len(metric.trend_data) >= 3:
                 if self._is_trending_up(metric.trend_data):
-                    insights.append(
-                        f"📈 {metric.metric_name} trending upward"
-                    )
+                    insights.append(f"📈 {metric.metric_name} trending upward")
                 elif self._is_trending_down(metric.trend_data):
-                    insights.append(
-                        f"📉 {metric.metric_name} trending downward"
-                    )
+                    insights.append(f"📉 {metric.metric_name} trending downward")
 
         if not insights:
             insights.append("✅ All metrics within acceptable ranges")
@@ -330,7 +309,7 @@ class PrometheusIntegration:
             return False
 
         recent = trend_data[-3:]
-        return all(recent[i] < recent[i+1] for i in range(len(recent)-1))
+        return all(recent[i] < recent[i + 1] for i in range(len(recent) - 1))
 
     def _is_trending_down(self, trend_data: List[float]) -> bool:
         """Check if trend is going down"""
@@ -338,14 +317,14 @@ class PrometheusIntegration:
             return False
 
         recent = trend_data[-3:]
-        return all(recent[i] > recent[i+1] for i in range(len(recent)-1))
+        return all(recent[i] > recent[i + 1] for i in range(len(recent) - 1))
 
     def _generate_cache_key(
         self,
         services: List[str],
         start_time: datetime,
         end_time: datetime,
-        metric_types: Optional[List[MetricType]]
+        metric_types: Optional[List[MetricType]],
     ) -> str:
         """Generate cache key for query"""
         services_str = ",".join(sorted(services))
@@ -364,9 +343,10 @@ class PrometheusIntegration:
             **self.stats,
             "cache_size": len(self.cache.cache),
             "cache_hit_rate": (
-                self.stats["cache_hits"] /
-                max(1, self.stats["cache_hits"] + self.stats["cache_misses"])
-            ) * 100
+                self.stats["cache_hits"]
+                / max(1, self.stats["cache_hits"] + self.stats["cache_misses"])
+            )
+            * 100,
         }
 
     def clear_cache(self):
@@ -386,7 +366,7 @@ class PrometheusIntegration:
                 "connection_status": health_status,
                 "build_info": build_info.get("data", {}),
                 "base_url": self.adapter.base_url,
-                "integration_stats": self.get_statistics()
+                "integration_stats": self.get_statistics(),
             }
         except Exception as e:
             self.logger.error(f"Error getting Prometheus info: {e}")

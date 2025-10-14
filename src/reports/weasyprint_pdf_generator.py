@@ -3,16 +3,18 @@ WeasyPrint PDF Generator for SRE Reports
 Generates high-quality PDF reports from HTML using WeasyPrint
 """
 
-import logging
-import weasyprint
-from pathlib import Path
-from datetime import datetime
-from typing import Optional, Dict, Any, List
 import base64
+import logging
 import os
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import weasyprint
 
 # Import PDF styles from centralized module
 from templates.pdf_styles import PDFStyles
+
 
 class WeasyPrintPDFGenerator:
     """PDF generator using WeasyPrint for high-quality output"""
@@ -20,8 +22,9 @@ class WeasyPrintPDFGenerator:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
 
-    def create_pdf_from_html(self, html_content: str, output_path: str,
-                           base_url: str = None) -> bool:
+    def create_pdf_from_html(
+        self, html_content: str, output_path: str, base_url: str = None
+    ) -> bool:
         """
         Create PDF from HTML content using WeasyPrint
 
@@ -42,8 +45,7 @@ class WeasyPrintPDFGenerator:
 
             # Create WeasyPrint HTML object
             html_obj = weasyprint.HTML(
-                string=html_content,
-                base_url=base_url or f"file://{os.getcwd()}/"
+                string=html_content, base_url=base_url or f"file://{os.getcwd()}/"
             )
 
             # Create CSS object
@@ -72,16 +74,16 @@ class WeasyPrintPDFGenerator:
         """
         if not output_path:
             html_path = Path(html_file_path)
-            output_path = html_path.with_suffix('.pdf')
+            output_path = html_path.with_suffix(".pdf")
 
         try:
-            with open(html_file_path, 'r', encoding='utf-8') as f:
+            with open(html_file_path, "r", encoding="utf-8") as f:
                 html_content = f.read()
 
             success = self.create_pdf_from_html(
                 html_content,
                 str(output_path),
-                base_url=f"file://{Path(html_file_path).parent.absolute()}/"
+                base_url=f"file://{Path(html_file_path).parent.absolute()}/",
             )
 
             if success:
@@ -214,7 +216,8 @@ if __name__ == "__main__":
         print("❌ WeasyPrint installation has issues")
 
     # Test PDF generation with sample content
-    sample_html = """
+    sample_html = (
+        """
     <!DOCTYPE html>
     <html>
     <head>
@@ -225,7 +228,9 @@ if __name__ == "__main__":
         <div class="container">
             <div class="header">
                 <h1>Sample SRE Performance Report</h1>
-                <p>Generated on: """ + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + """</p>
+                <p>Generated on: """
+        + datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        + """</p>
             </div>
 
             <div class="section">
@@ -277,6 +282,7 @@ if __name__ == "__main__":
     </body>
     </html>
     """
+    )
 
     # Generate sample PDF
     sample_pdf_path = "reports/generated/weasyprint_sample.pdf"

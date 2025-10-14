@@ -5,7 +5,7 @@ Handles generation of modular HTML templates for SRE reports.
 """
 
 import logging
-from typing import Dict, Any
+from typing import Any, Dict
 
 
 class HTMLTemplateBuilder:
@@ -22,7 +22,7 @@ class HTMLTemplateBuilder:
         Composed from modular template sections for better maintainability.
         Each section is extracted to its own method for easier testing and modification.
         """
-        return f'''<!DOCTYPE html>
+        return f"""<!DOCTYPE html>
 <html lang="en">
 {self._get_html_header_and_styles()}
 <body>
@@ -47,11 +47,11 @@ class HTMLTemplateBuilder:
     </div>
 </body>
 </html>
-        '''
+        """
 
     def _get_html_header_and_styles(self) -> str:
         """Generate HTML header with embedded styles"""
-        return '''<head>
+        return """<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ app_name }} - Comprehensive SRE Report</title>
@@ -167,11 +167,11 @@ class HTMLTemplateBuilder:
             .container { box-shadow: none; }
         }
     </style>
-</head>'''
+</head>"""
 
     def _get_html_executive_summary(self) -> str:
         """Generate executive summary section"""
-        return '''        <div class="section">
+        return """        <div class="section">
             <h2>Executive Summary</h2>
             <div class="summary-grid">
                 <div class="summary-card">
@@ -197,11 +197,11 @@ class HTMLTemplateBuilder:
                     </div>
                 </div>
             </div>
-        </div>'''
+        </div>"""
 
     def _get_html_trend_charts(self) -> str:
         """Generate trend charts section"""
-        return '''        <div class="trend-section">
+        return """        <div class="trend-section">
             <h2>🔄 Performance Trends & Analysis</h2>
             <p>The following charts show performance trends over the last 30 days with current status indicators.</p>
 
@@ -211,11 +211,11 @@ class HTMLTemplateBuilder:
                 <img src="{{ chart_data }}" alt="{{ chart_name }} Trend Chart">
             </div>
             {% endfor %}
-        </div>'''
+        </div>"""
 
     def _get_html_incident_analysis(self) -> str:
         """Generate incident analysis section"""
-        return '''        {% if has_incident %}
+        return """        {% if has_incident %}
         <div class="section">
             <div class="incident-section {% if incident.severity == 'Critical' %}incident-critical{% elif incident.severity == 'High' %}incident-high{% endif %}">
                 <h2>🚨 Incident Analysis Report</h2>
@@ -268,11 +268,11 @@ class HTMLTemplateBuilder:
                 </div>
             </div>
         </div>
-        {% endif %}'''
+        {% endif %}"""
 
     def _get_html_metrics_table(self) -> str:
         """Generate metrics table section"""
-        return '''        <div class="section">
+        return """        <div class="section">
             <h2>📊 Current SLO Metrics Status</h2>
             <table class="metrics-table">
                 <thead>
@@ -311,11 +311,11 @@ class HTMLTemplateBuilder:
                     {% endfor %}
                 </tbody>
             </table>
-        </div>'''
+        </div>"""
 
     def _get_html_recommendations(self) -> str:
         """Generate recommendations section"""
-        return '''        <div class="section">
+        return """        <div class="section">
             <h2>🎯 Key Recommendations</h2>
             <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
                 <ul>
@@ -330,11 +330,11 @@ class HTMLTemplateBuilder:
                     <li>Update incident response procedures based on latest analysis</li>
                 </ul>
             </div>
-        </div>'''
+        </div>"""
 
     def _get_html_footer(self) -> str:
         """Generate report footer"""
-        return '''        <div class="section">
+        return """        <div class="section">
             <small>
                 <p><strong>Report Features:</strong></p>
                 <ul>
@@ -347,4 +347,4 @@ class HTMLTemplateBuilder:
                 <p>This report combines traditional SRE metrics with advanced AI analysis to provide actionable insights for system reliability improvement.</p>
                 <p><em>Generated at {{ report_time }} on {{ report_date }}</em></p>
             </small>
-        </div>'''
+        </div>"""

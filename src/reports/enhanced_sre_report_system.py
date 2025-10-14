@@ -16,21 +16,21 @@ Main Components:
 
 import logging
 from datetime import datetime
-from typing import Dict, List, Any, Optional
 from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from src.reports.chart_generator import ChartGenerator
+from src.reports.configuration_loader import ConfigurationLoader
+from src.reports.html_template_builder import HTMLTemplateBuilder
+from src.reports.incident_generator import IncidentGenerator
 
 # Import data classes
-from src.reports.llm_analyzer import SLOMetric, IncidentData
+from src.reports.llm_analyzer import IncidentData, LLMAnalyzer, SLOMetric
+from src.reports.metrics_generator import MetricsGenerator
+from src.reports.pdf_report_generator import PDFReportGenerator
 
 # Import all component modules
 from src.reports.report_orchestrator import ReportOrchestrator
-from src.reports.pdf_report_generator import PDFReportGenerator
-from src.reports.html_template_builder import HTMLTemplateBuilder
-from src.reports.metrics_generator import MetricsGenerator
-from src.reports.chart_generator import ChartGenerator
-from src.reports.incident_generator import IncidentGenerator
-from src.reports.llm_analyzer import LLMAnalyzer
-from src.reports.configuration_loader import ConfigurationLoader
 
 
 class EnhancedSREReportSystem:
@@ -120,7 +120,7 @@ class EnhancedSREReportSystem:
         application_name: Optional[str] = None,
         services: Optional[List[str]] = None,
         incident_time: Optional[datetime] = None,
-        incident_duration: float = 1.0
+        incident_duration: float = 1.0,
     ) -> Dict[str, str]:
         """
         Generate complete report suite with performance and incident analysis.
@@ -149,14 +149,14 @@ class EnhancedSREReportSystem:
             application_name=application_name or self.app_name,
             services=services,
             incident_time=incident_time,
-            incident_duration=incident_duration
+            incident_duration=incident_duration,
         )
 
     def create_comprehensive_html_report(
         self,
         metrics: List[SLOMetric],
         incident: Optional[IncidentData] = None,
-        output_path: Optional[str] = None
+        output_path: Optional[str] = None,
     ) -> str:
         """
         Create comprehensive HTML report with trends and incident analysis.
@@ -170,9 +170,7 @@ class EnhancedSREReportSystem:
             Path to generated HTML report
         """
         return self.orchestrator.create_html_report(
-            metrics=metrics,
-            incident=incident,
-            output_path=output_path
+            metrics=metrics, incident=incident, output_path=output_path
         )
 
     def create_enhanced_pdf_report(
@@ -180,7 +178,7 @@ class EnhancedSREReportSystem:
         metrics: List[SLOMetric],
         incident: Optional[IncidentData] = None,
         output_path: Optional[str] = None,
-        use_browser: bool = True
+        use_browser: bool = True,
     ) -> str:
         """
         Create PDF report using enhanced template with multi-tier fallback.
@@ -200,10 +198,7 @@ class EnhancedSREReportSystem:
             Path to generated PDF file or empty string if failed
         """
         return self.orchestrator.create_pdf_report(
-            metrics=metrics,
-            incident=incident,
-            output_path=output_path,
-            use_browser=use_browser
+            metrics=metrics, incident=incident, output_path=output_path, use_browser=use_browser
         )
 
     def create_simple_pdf_report(
@@ -211,7 +206,7 @@ class EnhancedSREReportSystem:
         html_path: str,
         metrics: List[SLOMetric],
         incident: Optional[IncidentData] = None,
-        output_path: Optional[str] = None
+        output_path: Optional[str] = None,
     ) -> str:
         """
         Create PDF report - delegates to enhanced PDF creation.
@@ -227,15 +222,11 @@ class EnhancedSREReportSystem:
         """
         # Backward compatibility: ignore html_path, use enhanced PDF generation
         return self.create_enhanced_pdf_report(
-            metrics=metrics,
-            incident=incident,
-            output_path=output_path
+            metrics=metrics, incident=incident, output_path=output_path
         )
 
     def generate_metrics_with_trends(
-        self,
-        services: Optional[List[str]] = None,
-        days_back: int = 30
+        self, services: Optional[List[str]] = None, days_back: int = 30
     ) -> List[SLOMetric]:
         """
         Generate metrics with historical trend data.
@@ -248,14 +239,11 @@ class EnhancedSREReportSystem:
             List of SLO metrics with trend data
         """
         return self.metrics_generator.generate_metrics_with_trends(
-            services=services,
-            days_back=days_back
+            services=services, days_back=days_back
         )
 
     def create_trend_visualizations(
-        self,
-        metrics: List[SLOMetric],
-        save_images: bool = False
+        self, metrics: List[SLOMetric], save_images: bool = False
     ) -> Dict[str, str]:
         """
         Create trend visualization charts.
@@ -268,15 +256,11 @@ class EnhancedSREReportSystem:
             Dict mapping metric names to image paths or base64 strings
         """
         return self.chart_generator.create_trend_visualizations(
-            metrics=metrics,
-            save_images=save_images
+            metrics=metrics, save_images=save_images
         )
 
     def generate_incident_report(
-        self,
-        application_name: str,
-        incident_time: datetime,
-        duration_hours: float = 1.0
+        self, application_name: str, incident_time: datetime, duration_hours: float = 1.0
     ) -> IncidentData:
         """
         Generate incident report with RCA analysis.
@@ -292,7 +276,7 @@ class EnhancedSREReportSystem:
         return self.incident_generator.generate_incident_report(
             application_name=application_name,
             incident_time=incident_time,
-            duration_hours=duration_hours
+            duration_hours=duration_hours,
         )
 
     # ========================================================================
@@ -307,18 +291,20 @@ class EnhancedSREReportSystem:
             Dictionary with system and component status
         """
         return {
-            'system': {
-                'app_name': self.app_name,
-                'config_dir': str(self.config_dir),
-                'version': '2.0.0-refactored',
-                'architecture': 'modular'
+            "system": {
+                "app_name": self.app_name,
+                "config_dir": str(self.config_dir),
+                "version": "2.0.0-refactored",
+                "architecture": "modular",
             },
-            'orchestrator': self.orchestrator.get_component_status()
+            "orchestrator": self.orchestrator.get_component_status(),
         }
 
     def __repr__(self) -> str:
         """String representation"""
-        return f"EnhancedSREReportSystem(app_name='{self.app_name}', config_dir='{self.config_dir}')"
+        return (
+            f"EnhancedSREReportSystem(app_name='{self.app_name}', config_dir='{self.config_dir}')"
+        )
 
 
 # ============================================================================
@@ -328,8 +314,7 @@ class EnhancedSREReportSystem:
 if __name__ == "__main__":
     # Configure logging
     logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
     print("🚀 Enhanced SRE Report System - Refactored Architecture")
@@ -345,7 +330,7 @@ if __name__ == "__main__":
     system = EnhancedSREReportSystem(app_name=app_name)
 
     # Ask if user wants incident analysis
-    want_incident = input("\\nInclude incident analysis? (y/n): ").strip().lower() == 'y'
+    want_incident = input("\\nInclude incident analysis? (y/n): ").strip().lower() == "y"
 
     incident_time = None
     incident_duration = 1.0
@@ -379,7 +364,7 @@ if __name__ == "__main__":
         results = system.generate_full_report_suite(
             application_name=app_name,
             incident_time=incident_time,
-            incident_duration=incident_duration
+            incident_duration=incident_duration,
         )
 
         # Display results
@@ -402,4 +387,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\\n❌ Error: {e}")
         import traceback
+
         traceback.print_exc()

@@ -6,12 +6,12 @@ Includes error budget calculation and SLO target mapping.
 """
 
 import logging
-from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Any
 from collections import defaultdict
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 
-from .base import StandardMetric, MetricType
 from ..reports.llm_analyzer import SLOMetric
+from .base import MetricType, StandardMetric
 
 
 class AppDynamicsSLOMapper:
@@ -41,19 +41,17 @@ class AppDynamicsSLOMapper:
         """Get default SLO targets for common metrics"""
         return {
             "_default": {
-                "response_time": 200.0,      # 200ms
-                "error_rate": 1.0,           # 1% error rate
-                "throughput": 100.0,         # 100 requests/min minimum
-                "availability": 99.9,        # 99.9% uptime
-                "cpu_utilization": 80.0,     # 80% max CPU
-                "memory_utilization": 85.0   # 85% max memory
+                "response_time": 200.0,  # 200ms
+                "error_rate": 1.0,  # 1% error rate
+                "throughput": 100.0,  # 100 requests/min minimum
+                "availability": 99.9,  # 99.9% uptime
+                "cpu_utilization": 80.0,  # 80% max CPU
+                "memory_utilization": 85.0,  # 85% max memory
             }
         }
 
     def map_to_slo_metrics(
-        self,
-        standard_metrics: List[StandardMetric],
-        calculate_trends: bool = True
+        self, standard_metrics: List[StandardMetric], calculate_trends: bool = True
     ) -> List[SLOMetric]:
         """
         Convert StandardMetrics from AppDynamics to SLOMetrics
@@ -82,15 +80,12 @@ class AppDynamicsSLOMapper:
                 )
 
         self.logger.info(
-            f"Mapped {len(standard_metrics)} StandardMetrics to "
-            f"{len(slo_metrics)} SLOMetrics"
+            f"Mapped {len(standard_metrics)} StandardMetrics to " f"{len(slo_metrics)} SLOMetrics"
         )
 
         return slo_metrics
 
-    def _group_metrics(
-        self, metrics: List[StandardMetric]
-    ) -> Dict[tuple, List[StandardMetric]]:
+    def _group_metrics(self, metrics: List[StandardMetric]) -> Dict[tuple, List[StandardMetric]]:
         """Group metrics by service and metric type"""
         grouped = defaultdict(list)
 
@@ -105,7 +100,7 @@ class AppDynamicsSLOMapper:
         service_name: str,
         metric_type: str,
         metrics: List[StandardMetric],
-        calculate_trends: bool
+        calculate_trends: bool,
     ) -> Optional[SLOMetric]:
         """Create a single SLO metric from grouped StandardMetrics"""
 
@@ -120,18 +115,14 @@ class AppDynamicsSLOMapper:
         current_value = current_metric.value
 
         # Get SLO and SLA targets
-        service_targets = self.slo_targets.get(
-            service_name, self.slo_targets.get("_default", {})
-        )
+        service_targets = self.slo_targets.get(service_name, self.slo_targets.get("_default", {}))
         slo_target = service_targets.get(metric_type, 0.0)
 
         # SLA target is typically 10% higher than SLO
         sla_target = slo_target * 1.1
 
         # Calculate error budget consumed
-        error_budget_consumed = self._calculate_error_budget(
-            current_value, slo_target, metric_type
-        )
+        error_budget_consumed = self._calculate_error_budget(current_value, slo_target, metric_type)
 
         # Determine compliance status
         status = self._determine_status(error_budget_consumed)
@@ -163,7 +154,7 @@ class AppDynamicsSLOMapper:
             timestamp=current_metric.timestamp,
             unit=unit,
             description=description,
-            trend_data=trend_data
+            trend_data=trend_data,
         )
 
         return slo_metric
@@ -181,7 +172,12 @@ class AppDynamicsSLOMapper:
             return 0.0
 
         # Different calculation based on metric type
-        if metric_type in ["response_time", "cpu_utilization", "memory_utilization", "disk_utilization"]:
+        if metric_type in [
+            "response_time",
+            "cpu_utilization",
+            "memory_utilization",
+            "disk_utilization",
+        ]:
             # Lower is better - error budget increases as value approaches target
             if current_value <= slo_target:
                 # Within SLO - calculate how close we are to the limit
@@ -236,7 +232,7 @@ class AppDynamicsSLOMapper:
             "memory_utilization": "%",
             "disk_utilization": "%",
             "network_io": "MB/s",
-            "database_connections": "connections"
+            "database_connections": "connections",
         }
         return unit_map.get(metric_type, "")
 
@@ -251,7 +247,7 @@ class AppDynamicsSLOMapper:
             "memory_utilization": "Memory Utilization",
             "disk_utilization": "Disk Utilization",
             "network_io": "Network I/O",
-            "database_connections": "Database Connections"
+            "database_connections": "Database Connections",
         }
         return name_map.get(metric_type, metric_type.replace("_", " ").title())
 
@@ -261,7 +257,7 @@ class AppDynamicsSLOMapper:
         metric_type: str,
         current_value: float,
         slo_target: float,
-        unit: str
+        unit: str,
     ) -> str:
         """Generate a descriptive text for the metric"""
         metric_display = self._get_metric_display_name(metric_type)
@@ -285,16 +281,14 @@ class AppDynamicsSLOMapper:
         Returns:
             Dictionary with health score and details
         """
-        service_metrics = [
-            m for m in slo_metrics if m.service_name == service_name
-        ]
+        service_metrics = [m for m in slo_metrics if m.service_name == service_name]
 
         if not service_metrics:
             return {
                 "service_name": service_name,
                 "health_score": 0.0,
                 "status": "unknown",
-                "metrics_count": 0
+                "metrics_count": 0,
             }
 
         # Calculate health score (0-100)
@@ -307,7 +301,7 @@ class AppDynamicsSLOMapper:
         status_counts = {
             "compliant": sum(1 for m in service_metrics if m.status == "compliant"),
             "at_risk": sum(1 for m in service_metrics if m.status == "at_risk"),
-            "breached": sum(1 for m in service_metrics if m.status == "breached")
+            "breached": sum(1 for m in service_metrics if m.status == "breached"),
         }
 
         # Overall status
@@ -324,5 +318,5 @@ class AppDynamicsSLOMapper:
             "status": overall_status,
             "metrics_count": len(service_metrics),
             "status_breakdown": status_counts,
-            "avg_error_budget_consumed": round(avg_budget, 2)
+            "avg_error_budget_consumed": round(avg_budget, 2),
         }

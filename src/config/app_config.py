@@ -6,13 +6,14 @@ configuration including environment variables, with validation and defaults.
 """
 
 import os
-from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
 class AppDynamicsConfig:
     """AppDynamics-specific configuration"""
+
     controller_host: str
     client_id: str
     client_secret: str
@@ -21,15 +22,15 @@ class AppDynamicsConfig:
     primary_app: Optional[str] = None
 
     @classmethod
-    def from_env(cls) -> 'AppDynamicsConfig':
+    def from_env(cls) -> "AppDynamicsConfig":
         """Load AppDynamics config from environment variables"""
         return cls(
-            controller_host=os.getenv('APPDYNAMICS_CONTROLLER_HOST', ''),
-            client_id=os.getenv('APPDYNAMICS_CLIENT_ID', ''),
-            client_secret=os.getenv('APPDYNAMICS_CLIENT_SECRET', ''),
-            account=os.getenv('APPDYNAMICS_CONTROLLER_ACCOUNT'),
-            access_key=os.getenv('APPDYNAMICS_CONTROLLER_ACCESS_KEY'),
-            primary_app=os.getenv('DEFAULT_APPLICATION_NAME')
+            controller_host=os.getenv("APPDYNAMICS_CONTROLLER_HOST", ""),
+            client_id=os.getenv("APPDYNAMICS_CLIENT_ID", ""),
+            client_secret=os.getenv("APPDYNAMICS_CLIENT_SECRET", ""),
+            account=os.getenv("APPDYNAMICS_CONTROLLER_ACCOUNT"),
+            access_key=os.getenv("APPDYNAMICS_CONTROLLER_ACCESS_KEY"),
+            primary_app=os.getenv("DEFAULT_APPLICATION_NAME"),
         )
 
     def validate(self) -> bool:
@@ -40,15 +41,16 @@ class AppDynamicsConfig:
 @dataclass
 class LLMConfig:
     """LLM provider configuration"""
+
     openai_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None
 
     @classmethod
-    def from_env(cls) -> 'LLMConfig':
+    def from_env(cls) -> "LLMConfig":
         """Load LLM config from environment variables"""
         return cls(
-            openai_api_key=os.getenv('OPENAI_API_KEY'),
-            anthropic_api_key=os.getenv('ANTHROPIC_API_KEY')
+            openai_api_key=os.getenv("OPENAI_API_KEY"),
+            anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
         )
 
     def has_provider(self) -> bool:
@@ -59,51 +61,52 @@ class LLMConfig:
 @dataclass
 class ReportConfig:
     """Report generation configuration"""
-    output_path: str = 'reports/generated'
+
+    output_path: str = "reports/generated"
 
     @classmethod
-    def from_env(cls) -> 'ReportConfig':
+    def from_env(cls) -> "ReportConfig":
         """Load report config from environment variables"""
-        return cls(
-            output_path=os.getenv('REPORT_OUTPUT_PATH', 'reports/generated')
-        )
+        return cls(output_path=os.getenv("REPORT_OUTPUT_PATH", "reports/generated"))
 
 
 @dataclass
 class FlaskConfig:
     """Flask application configuration"""
-    secret_key: str = 'dev-key-change-in-production'
-    env: str = 'production'
+
+    secret_key: str = "dev-key-change-in-production"
+    env: str = "production"
 
     @classmethod
-    def from_env(cls) -> 'FlaskConfig':
+    def from_env(cls) -> "FlaskConfig":
         """Load Flask config from environment variables"""
         return cls(
-            secret_key=os.getenv('FLASK_SECRET_KEY', 'dev-key-change-in-production'),
-            env=os.getenv('FLASK_ENV', 'production')
+            secret_key=os.getenv("FLASK_SECRET_KEY", "dev-key-change-in-production"),
+            env=os.getenv("FLASK_ENV", "production"),
         )
 
 
 @dataclass
 class SystemConfig:
     """System-level configuration (paths, libraries, etc.)"""
+
     pkg_config_path: Optional[str] = None
     dyld_library_path: Optional[str] = None
 
     @classmethod
-    def from_env(cls) -> 'SystemConfig':
+    def from_env(cls) -> "SystemConfig":
         """Load system config from environment variables"""
         return cls(
-            pkg_config_path=os.getenv('PKG_CONFIG_PATH'),
-            dyld_library_path=os.getenv('DYLD_LIBRARY_PATH')
+            pkg_config_path=os.getenv("PKG_CONFIG_PATH"),
+            dyld_library_path=os.getenv("DYLD_LIBRARY_PATH"),
         )
 
     def apply_to_env(self) -> None:
         """Apply system configuration to environment variables"""
         if self.pkg_config_path:
-            os.environ['PKG_CONFIG_PATH'] = self.pkg_config_path
+            os.environ["PKG_CONFIG_PATH"] = self.pkg_config_path
         if self.dyld_library_path:
-            os.environ['DYLD_LIBRARY_PATH'] = self.dyld_library_path
+            os.environ["DYLD_LIBRARY_PATH"] = self.dyld_library_path
 
 
 class Config:
@@ -132,7 +135,7 @@ class Config:
         llm: LLMConfig,
         report: ReportConfig,
         flask: FlaskConfig,
-        system: SystemConfig
+        system: SystemConfig,
     ):
         self.appdynamics = appdynamics
         self.llm = llm
@@ -141,7 +144,7 @@ class Config:
         self.system = system
 
     @classmethod
-    def load(cls) -> 'Config':
+    def load(cls) -> "Config":
         """
         Load configuration from environment variables
 
@@ -153,7 +156,7 @@ class Config:
             llm=LLMConfig.from_env(),
             report=ReportConfig.from_env(),
             flask=FlaskConfig.from_env(),
-            system=SystemConfig.from_env()
+            system=SystemConfig.from_env(),
         )
 
     def validate(self) -> Dict[str, bool]:
@@ -164,8 +167,8 @@ class Config:
             Dict mapping section names to validation status
         """
         return {
-            'appdynamics': self.appdynamics.validate(),
-            'llm': self.llm.has_provider(),
+            "appdynamics": self.appdynamics.validate(),
+            "llm": self.llm.has_provider(),
         }
 
     def get_validation_errors(self) -> List[str]:
@@ -184,9 +187,7 @@ class Config:
             )
 
         if not self.llm.has_provider():
-            errors.append(
-                "No LLM provider configured: set OPENAI_API_KEY or ANTHROPIC_API_KEY"
-            )
+            errors.append("No LLM provider configured: set OPENAI_API_KEY or ANTHROPIC_API_KEY")
 
         return errors
 
@@ -198,28 +199,28 @@ class Config:
             Dictionary representation of configuration (with secrets masked)
         """
         return {
-            'appdynamics': {
-                'controller_host': self.appdynamics.controller_host,
-                'client_id': '***' if self.appdynamics.client_id else None,
-                'client_secret': '***' if self.appdynamics.client_secret else None,
-                'account': self.appdynamics.account,
-                'primary_app': self.appdynamics.primary_app,
+            "appdynamics": {
+                "controller_host": self.appdynamics.controller_host,
+                "client_id": "***" if self.appdynamics.client_id else None,
+                "client_secret": "***" if self.appdynamics.client_secret else None,
+                "account": self.appdynamics.account,
+                "primary_app": self.appdynamics.primary_app,
             },
-            'llm': {
-                'openai_configured': bool(self.llm.openai_api_key),
-                'anthropic_configured': bool(self.llm.anthropic_api_key),
+            "llm": {
+                "openai_configured": bool(self.llm.openai_api_key),
+                "anthropic_configured": bool(self.llm.anthropic_api_key),
             },
-            'report': {
-                'output_path': self.report.output_path,
+            "report": {
+                "output_path": self.report.output_path,
             },
-            'flask': {
-                'secret_key': '***' if self.flask.secret_key else None,
-                'env': self.flask.env,
+            "flask": {
+                "secret_key": "***" if self.flask.secret_key else None,
+                "env": self.flask.env,
             },
-            'system': {
-                'pkg_config_path': self.system.pkg_config_path,
-                'dyld_library_path': self.system.dyld_library_path,
-            }
+            "system": {
+                "pkg_config_path": self.system.pkg_config_path,
+                "dyld_library_path": self.system.dyld_library_path,
+            },
         }
 
 

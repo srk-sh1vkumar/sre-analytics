@@ -6,20 +6,22 @@ Supports OpenAI and Anthropic providers with fallback analysis.
 """
 
 import logging
-from typing import List, Dict, Any
 from dataclasses import dataclass
+from typing import Any, Dict, List
 
 from src.config.app_config import get_config
 
 # LLM provider imports with availability flags
 try:
     from openai import OpenAI
+
     OPENAI_AVAILABLE = True
 except ImportError:
     OPENAI_AVAILABLE = False
 
 try:
     import anthropic
+
     ANTHROPIC_AVAILABLE = True
 except ImportError:
     ANTHROPIC_AVAILABLE = False
@@ -29,6 +31,7 @@ except ImportError:
 @dataclass
 class SLOMetric:
     """SLO metric data structure"""
+
     service_name: str
     metric_name: str
     current_value: float
@@ -45,6 +48,7 @@ class SLOMetric:
 @dataclass
 class IncidentData:
     """Incident data structure"""
+
     incident_id: str
     title: str
     description: str
@@ -62,6 +66,7 @@ class IncidentData:
 @dataclass
 class PerformanceSnapshot:
     """Performance snapshot at a point in time"""
+
     service_name: str
     timestamp: Any  # datetime
     metrics: Dict[str, float]
@@ -98,8 +103,9 @@ class LLMAnalyzer:
                 if self.api_key:
                     self.client = anthropic.Anthropic(api_key=self.api_key)
 
-    def analyze_incident_root_cause(self, incident: IncidentData,
-                                   snapshots: List[PerformanceSnapshot]) -> str:
+    def analyze_incident_root_cause(
+        self, incident: IncidentData, snapshots: List[PerformanceSnapshot]
+    ) -> str:
         """
         Analyze incident using LLM for root cause analysis
 
@@ -136,22 +142,21 @@ class LLMAnalyzer:
                 response = self.client.messages.create(
                     model="claude-3-sonnet-20240229",
                     max_tokens=1500,
-                    messages=[{"role": "user", "content": prompt}]
+                    messages=[{"role": "user", "content": prompt}],
                 )
                 return response.content[0].text
             elif self.provider == "openai" and OPENAI_AVAILABLE:
                 response = self.client.chat.completions.create(
-                    model="gpt-4",
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=1500
+                    model="gpt-4", messages=[{"role": "user", "content": prompt}], max_tokens=1500
                 )
                 return response.choices[0].message.content
         except Exception as e:
             self.logger.error(f"LLM analysis failed: {e}")
             return self._fallback_rca_analysis(incident, snapshots)
 
-    def _prepare_incident_context(self, incident: IncidentData,
-                                 snapshots: List[PerformanceSnapshot]) -> str:
+    def _prepare_incident_context(
+        self, incident: IncidentData, snapshots: List[PerformanceSnapshot]
+    ) -> str:
         """Prepare context for incident analysis"""
         context = f"""
 INCIDENT DETAILS:
@@ -174,8 +179,9 @@ PERFORMANCE SNAPSHOTS:
 
         return context
 
-    def _fallback_rca_analysis(self, incident: IncidentData,
-                              snapshots: List[PerformanceSnapshot]) -> str:
+    def _fallback_rca_analysis(
+        self, incident: IncidentData, snapshots: List[PerformanceSnapshot]
+    ) -> str:
         """Fallback analysis without LLM"""
         analysis = f"""
 ROOT CAUSE ANALYSIS (Rule-based):
@@ -242,21 +248,21 @@ Next Steps:
                 response = self.client.messages.create(
                     model="claude-3-sonnet-20240229",
                     max_tokens=1000,
-                    messages=[{"role": "user", "content": prompt}]
+                    messages=[{"role": "user", "content": prompt}],
                 )
                 return response.content[0].text
             elif self.provider == "openai" and OPENAI_AVAILABLE:
                 response = self.client.chat.completions.create(
-                    model="gpt-4",
-                    messages=[{"role": "user", "content": prompt}],
-                    max_tokens=1000
+                    model="gpt-4", messages=[{"role": "user", "content": prompt}], max_tokens=1000
                 )
                 return response.choices[0].message.content
         except Exception as e:
             self.logger.error(f"LLM performance analysis failed: {e}")
             return self._fallback_performance_analysis(metrics, summary)
 
-    def _prepare_performance_context(self, metrics: List[SLOMetric], summary: Dict[str, Any]) -> str:
+    def _prepare_performance_context(
+        self, metrics: List[SLOMetric], summary: Dict[str, Any]
+    ) -> str:
         """Prepare context for performance analysis"""
         context = f"""
 SYSTEM OVERVIEW:
@@ -270,7 +276,13 @@ SYSTEM OVERVIEW:
 DETAILED METRICS:
 """
         for metric in metrics:
-            trend_indicator = "📈" if metric.trend_data and len(metric.trend_data) > 1 and metric.trend_data[-1] > metric.trend_data[0] else "📉"
+            trend_indicator = (
+                "📈"
+                if metric.trend_data
+                and len(metric.trend_data) > 1
+                and metric.trend_data[-1] > metric.trend_data[0]
+                else "📉"
+            )
             context += f"""
 - {metric.service_name} {metric.metric_name}:
   Current: {metric.current_value:.2f}{metric.unit} (Target: {metric.slo_target:.2f}{metric.unit})
@@ -280,7 +292,9 @@ DETAILED METRICS:
 """
         return context
 
-    def _fallback_performance_analysis(self, metrics: List[SLOMetric], summary: Dict[str, Any]) -> str:
+    def _fallback_performance_analysis(
+        self, metrics: List[SLOMetric], summary: Dict[str, Any]
+    ) -> str:
         """Fallback analysis without LLM"""
         analysis = f"""
 SYSTEM HEALTH ASSESSMENT:

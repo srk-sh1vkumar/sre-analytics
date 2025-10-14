@@ -3,20 +3,21 @@ AppDynamics Data Source Adapter
 Implements the generic data source interface for AppDynamics
 """
 
-import requests
 import json
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
 from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import requests
 
 from .base import (
     DataSourceAdapter,
-    StandardMetric,
     DataSourceConfig,
-    QueryParams,
+    DataSourceType,
     MetricType,
-    DataSourceType
+    QueryParams,
+    StandardMetric,
 )
 
 
@@ -35,22 +36,15 @@ class AppDynamicsAdapter(DataSourceAdapter):
         """Setup authentication for AppDynamics API"""
         auth_config = self.config.authentication or {}
 
-        if auth_config.get('username') and auth_config.get('password'):
+        if auth_config.get("username") and auth_config.get("password"):
             # Basic authentication
-            self.session.auth = (
-                auth_config['username'],
-                auth_config['password']
-            )
-        elif auth_config.get('api_key'):
+            self.session.auth = (auth_config["username"], auth_config["password"])
+        elif auth_config.get("api_key"):
             # API key authentication
-            self.session.headers.update({
-                'Authorization': f"Bearer {auth_config['api_key']}"
-            })
-        elif auth_config.get('oauth_token'):
+            self.session.headers.update({"Authorization": f"Bearer {auth_config['api_key']}"})
+        elif auth_config.get("oauth_token"):
             # OAuth token authentication
-            self.session.headers.update({
-                'Authorization': f"Bearer {auth_config['oauth_token']}"
-            })
+            self.session.headers.update({"Authorization": f"Bearer {auth_config['oauth_token']}"})
 
     def connect(self) -> bool:
         """Establish connection to AppDynamics"""
@@ -79,10 +73,10 @@ class AppDynamicsAdapter(DataSourceAdapter):
             if response.status_code == 200:
                 apps = response.json()
                 if isinstance(apps, list):
-                    return [app.get('name', '') for app in apps if app.get('name')]
+                    return [app.get("name", "") for app in apps if app.get("name")]
                 else:
                     # Single application response
-                    return [apps.get('name', '')] if apps.get('name') else []
+                    return [apps.get("name", "")] if apps.get("name") else []
             else:
                 self.logger.error(f"Failed to get applications: {response.status_code}")
                 return []
@@ -102,13 +96,15 @@ class AppDynamicsAdapter(DataSourceAdapter):
                 transactions = response.json()
                 if isinstance(transactions, list):
                     for tx in transactions:
-                        tx_name = tx.get('name', '')
+                        tx_name = tx.get("name", "")
                         if tx_name:
-                            metrics.extend([
-                                f"{tx_name}:response_time",
-                                f"{tx_name}:calls_per_minute",
-                                f"{tx_name}:error_rate"
-                            ])
+                            metrics.extend(
+                                [
+                                    f"{tx_name}:response_time",
+                                    f"{tx_name}:calls_per_minute",
+                                    f"{tx_name}:error_rate",
+                                ]
+                            )
 
             # Add standard application metrics
             standard_metrics = [
@@ -116,7 +112,7 @@ class AppDynamicsAdapter(DataSourceAdapter):
                 "Overall Application Performance:calls_per_minute",
                 "Overall Application Performance:error_rate",
                 "Infrastructure:cpu_utilization",
-                "Infrastructure:memory_utilization"
+                "Infrastructure:memory_utilization",
             ]
             metrics.extend(standard_metrics)
 
@@ -138,7 +134,9 @@ class AppDynamicsAdapter(DataSourceAdapter):
 
         return metrics
 
-    def _query_service_metrics(self, service_name: str, params: QueryParams) -> List[StandardMetric]:
+    def _query_service_metrics(
+        self, service_name: str, params: QueryParams
+    ) -> List[StandardMetric]:
         """Query metrics for a specific service"""
         metrics = []
 
@@ -154,7 +152,10 @@ class AppDynamicsAdapter(DataSourceAdapter):
         metrics.extend(bt_metrics)
 
         # Query infrastructure metrics if requested
-        if not params.metric_types or any(mt in [MetricType.CPU_UTILIZATION, MetricType.MEMORY_UTILIZATION] for mt in params.metric_types):
+        if not params.metric_types or any(
+            mt in [MetricType.CPU_UTILIZATION, MetricType.MEMORY_UTILIZATION]
+            for mt in params.metric_types
+        ):
             infra_metrics = self._query_infrastructure_metrics(
                 service_name, start_time_ms, end_time_ms, duration_mins, params
             )
@@ -162,9 +163,14 @@ class AppDynamicsAdapter(DataSourceAdapter):
 
         return metrics
 
-    def _query_business_transaction_metrics(self, service_name: str, start_time_ms: int,
-                                          end_time_ms: int, duration_mins: int,
-                                          params: QueryParams) -> List[StandardMetric]:
+    def _query_business_transaction_metrics(
+        self,
+        service_name: str,
+        start_time_ms: int,
+        end_time_ms: int,
+        duration_mins: int,
+        params: QueryParams,
+    ) -> List[StandardMetric]:
         """Query business transaction metrics"""
         metrics = []
 
@@ -181,23 +187,25 @@ class AppDynamicsAdapter(DataSourceAdapter):
                 transactions = [transactions] if transactions else []
 
             for transaction in transactions[:5]:  # Limit to first 5 transactions
-                bt_name = transaction.get('name', '')
-                bt_id = transaction.get('id', '')
+                bt_name = transaction.get("name", "")
+                bt_id = transaction.get("id", "")
 
                 if not bt_name or not bt_id:
                     continue
 
                 # Query metrics for this business transaction
-                metric_data_url = f"{self.controller_url}/controller/rest/applications/{service_name}/metric-data"
+                metric_data_url = (
+                    f"{self.controller_url}/controller/rest/applications/{service_name}/metric-data"
+                )
 
                 # Response Time
                 if not params.metric_types or MetricType.RESPONSE_TIME in params.metric_types:
                     rt_params = {
-                        'metric-path': f"Business Transaction Performance|Business Transactions|{bt_name}|Average Response Time (ms)",
-                        'time-range-type': 'BETWEEN_TIMES',
-                        'start-time': start_time_ms,
-                        'end-time': end_time_ms,
-                        'rollup': 'false'
+                        "metric-path": f"Business Transaction Performance|Business Transactions|{bt_name}|Average Response Time (ms)",
+                        "time-range-type": "BETWEEN_TIMES",
+                        "start-time": start_time_ms,
+                        "end-time": end_time_ms,
+                        "rollup": "false",
                     }
 
                     rt_response = self.session.get(metric_data_url, params=rt_params, timeout=30)
@@ -211,11 +219,11 @@ class AppDynamicsAdapter(DataSourceAdapter):
                 # Throughput (Calls per minute)
                 if not params.metric_types or MetricType.THROUGHPUT in params.metric_types:
                     tp_params = {
-                        'metric-path': f"Business Transaction Performance|Business Transactions|{bt_name}|Calls per Minute",
-                        'time-range-type': 'BETWEEN_TIMES',
-                        'start-time': start_time_ms,
-                        'end-time': end_time_ms,
-                        'rollup': 'false'
+                        "metric-path": f"Business Transaction Performance|Business Transactions|{bt_name}|Calls per Minute",
+                        "time-range-type": "BETWEEN_TIMES",
+                        "start-time": start_time_ms,
+                        "end-time": end_time_ms,
+                        "rollup": "false",
                     }
 
                     tp_response = self.session.get(metric_data_url, params=tp_params, timeout=30)
@@ -229,11 +237,11 @@ class AppDynamicsAdapter(DataSourceAdapter):
                 # Error Rate
                 if not params.metric_types or MetricType.ERROR_RATE in params.metric_types:
                     er_params = {
-                        'metric-path': f"Business Transaction Performance|Business Transactions|{bt_name}|Errors per Minute",
-                        'time-range-type': 'BETWEEN_TIMES',
-                        'start-time': start_time_ms,
-                        'end-time': end_time_ms,
-                        'rollup': 'false'
+                        "metric-path": f"Business Transaction Performance|Business Transactions|{bt_name}|Errors per Minute",
+                        "time-range-type": "BETWEEN_TIMES",
+                        "start-time": start_time_ms,
+                        "end-time": end_time_ms,
+                        "rollup": "false",
                     }
 
                     er_response = self.session.get(metric_data_url, params=er_params, timeout=30)
@@ -249,23 +257,30 @@ class AppDynamicsAdapter(DataSourceAdapter):
 
         return metrics
 
-    def _query_infrastructure_metrics(self, service_name: str, start_time_ms: int,
-                                    end_time_ms: int, duration_mins: int,
-                                    params: QueryParams) -> List[StandardMetric]:
+    def _query_infrastructure_metrics(
+        self,
+        service_name: str,
+        start_time_ms: int,
+        end_time_ms: int,
+        duration_mins: int,
+        params: QueryParams,
+    ) -> List[StandardMetric]:
         """Query infrastructure metrics"""
         metrics = []
 
         try:
-            metric_data_url = f"{self.controller_url}/controller/rest/applications/{service_name}/metric-data"
+            metric_data_url = (
+                f"{self.controller_url}/controller/rest/applications/{service_name}/metric-data"
+            )
 
             # CPU Utilization
             if not params.metric_types or MetricType.CPU_UTILIZATION in params.metric_types:
                 cpu_params = {
-                    'metric-path': "Application Infrastructure Performance|*|Hardware Resources|CPU|%Busy",
-                    'time-range-type': 'BETWEEN_TIMES',
-                    'start-time': start_time_ms,
-                    'end-time': end_time_ms,
-                    'rollup': 'false'
+                    "metric-path": "Application Infrastructure Performance|*|Hardware Resources|CPU|%Busy",
+                    "time-range-type": "BETWEEN_TIMES",
+                    "start-time": start_time_ms,
+                    "end-time": end_time_ms,
+                    "rollup": "false",
                 }
 
                 cpu_response = self.session.get(metric_data_url, params=cpu_params, timeout=30)
@@ -279,11 +294,11 @@ class AppDynamicsAdapter(DataSourceAdapter):
             # Memory Utilization
             if not params.metric_types or MetricType.MEMORY_UTILIZATION in params.metric_types:
                 mem_params = {
-                    'metric-path': "Application Infrastructure Performance|*|Hardware Resources|Memory|Used %",
-                    'time-range-type': 'BETWEEN_TIMES',
-                    'start-time': start_time_ms,
-                    'end-time': end_time_ms,
-                    'rollup': 'false'
+                    "metric-path": "Application Infrastructure Performance|*|Hardware Resources|Memory|Used %",
+                    "time-range-type": "BETWEEN_TIMES",
+                    "start-time": start_time_ms,
+                    "end-time": end_time_ms,
+                    "rollup": "false",
                 }
 
                 mem_response = self.session.get(metric_data_url, params=mem_params, timeout=30)
@@ -299,9 +314,14 @@ class AppDynamicsAdapter(DataSourceAdapter):
 
         return metrics
 
-    def _parse_metric_data(self, metric_data: List[Dict], service_name: str,
-                          component_name: str, metric_type: MetricType,
-                          unit: str) -> List[StandardMetric]:
+    def _parse_metric_data(
+        self,
+        metric_data: List[Dict],
+        service_name: str,
+        component_name: str,
+        metric_type: MetricType,
+        unit: str,
+    ) -> List[StandardMetric]:
         """Parse AppDynamics metric data into StandardMetric format"""
         metrics = []
 
@@ -310,18 +330,20 @@ class AppDynamicsAdapter(DataSourceAdapter):
                 metric_data = [metric_data] if metric_data else []
 
             for metric_series in metric_data:
-                metric_name = metric_series.get('metricName', component_name)
-                metric_values = metric_series.get('metricValues', [])
+                metric_name = metric_series.get("metricName", component_name)
+                metric_values = metric_series.get("metricValues", [])
 
                 for value_point in metric_values:
-                    timestamp_ms = value_point.get('startTimeInMillis', 0)
-                    value = value_point.get('value', 0)
+                    timestamp_ms = value_point.get("startTimeInMillis", 0)
+                    value = value_point.get("value", 0)
 
                     if timestamp_ms and value is not None:
                         timestamp = datetime.fromtimestamp(timestamp_ms / 1000)
 
                         # Generate unique metric ID
-                        metric_id = f"{service_name}:{component_name}:{metric_type.value}:{timestamp_ms}"
+                        metric_id = (
+                            f"{service_name}:{component_name}:{metric_type.value}:{timestamp_ms}"
+                        )
 
                         standard_metric = StandardMetric(
                             metric_id=metric_id,
@@ -331,11 +353,8 @@ class AppDynamicsAdapter(DataSourceAdapter):
                             value=float(value),
                             timestamp=timestamp,
                             unit=unit,
-                            tags={
-                                "component": component_name,
-                                "source_metric": metric_name
-                            },
-                            raw_data=value_point
+                            tags={"component": component_name, "source_metric": metric_name},
+                            raw_data=value_point,
                         )
 
                         metrics.append(standard_metric)
@@ -357,12 +376,12 @@ class AppDynamicsAdapter(DataSourceAdapter):
                 "controller_url": self.controller_url,
                 "available_services": len(services),
                 "services": services[:5],  # Show first 5 services
-                "last_checked": datetime.now().isoformat()
+                "last_checked": datetime.now().isoformat(),
             }
         except Exception as e:
             return {
                 "status": "error",
                 "connected": False,
                 "error": str(e),
-                "last_checked": datetime.now().isoformat()
+                "last_checked": datetime.now().isoformat(),
             }

@@ -3,24 +3,27 @@ SLO/SLA Report Generator
 Generates comprehensive Service Level Objective and Service Level Agreement compliance reports
 """
 
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import yaml
 import json
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Tuple
-from pathlib import Path
 import logging
 from dataclasses import dataclass
-import plotly.graph_objects as go
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Tuple
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
+import seaborn as sns
+import yaml
 from plotly.subplots import make_subplots
+
 
 @dataclass
 class SLOMetric:
     """SLO metric data structure"""
+
     service_name: str
     metric_name: str
     current_value: float
@@ -30,9 +33,11 @@ class SLOMetric:
     error_budget_consumed: float  # percentage
     timestamp: datetime
 
+
 @dataclass
 class SLACompliance:
     """SLA compliance data structure"""
+
     service_name: str
     availability_percent: float
     avg_response_time: float
@@ -42,6 +47,7 @@ class SLACompliance:
     compliance_status: str
     penalties_applicable: bool
     credit_percentage: float
+
 
 class SLOSLAReportGenerator:
     """Generates comprehensive SLO/SLA compliance reports"""
@@ -60,7 +66,7 @@ class SLOSLAReportGenerator:
     def _load_yaml(self, filename: str) -> Dict[str, Any]:
         """Load YAML configuration file"""
         try:
-            with open(self.config_dir / filename, 'r') as file:
+            with open(self.config_dir / filename, "r") as file:
                 return yaml.safe_load(file)
         except Exception as e:
             self.logger.error(f"Failed to load {filename}: {e}")
@@ -68,14 +74,14 @@ class SLOSLAReportGenerator:
 
     def _setup_styling(self):
         """Setup matplotlib and seaborn styling"""
-        plt.style.use('default')
+        plt.style.use("default")
         sns.set_palette("husl")
 
         # Configure matplotlib
-        plt.rcParams['figure.figsize'] = (12, 8)
-        plt.rcParams['font.size'] = 10
-        plt.rcParams['axes.titlesize'] = 14
-        plt.rcParams['axes.labelsize'] = 12
+        plt.rcParams["figure.figsize"] = (12, 8)
+        plt.rcParams["font.size"] = 10
+        plt.rcParams["axes.titlesize"] = 14
+        plt.rcParams["axes.labelsize"] = 12
 
     def generate_demo_metrics(self, days_back: int = 30) -> List[SLOMetric]:
         """Generate realistic demo metrics for the report"""
@@ -83,11 +89,11 @@ class SLOSLAReportGenerator:
         metrics = []
         current_time = datetime.now()
 
-        services = self.slo_config.get('service_level_objectives', {})
+        services = self.slo_config.get("service_level_objectives", {})
 
         for service_name, slo_config in services.items():
             # Generate availability metrics
-            base_availability = float(slo_config.get('availability_slo', '99.9%').rstrip('%'))
+            base_availability = float(slo_config.get("availability_slo", "99.9%").rstrip("%"))
             # Add realistic variance (±0.1%)
             current_availability = base_availability + np.random.normal(0, 0.05)
 
@@ -98,13 +104,15 @@ class SLOSLAReportGenerator:
                 slo_target=base_availability,
                 sla_target=99.9,  # External SLA commitment
                 status=self._get_compliance_status(current_availability, base_availability),
-                error_budget_consumed=max(0, (base_availability - current_availability) / (100 - base_availability) * 100),
-                timestamp=current_time
+                error_budget_consumed=max(
+                    0, (base_availability - current_availability) / (100 - base_availability) * 100
+                ),
+                timestamp=current_time,
             )
             metrics.append(availability_metric)
 
             # Generate latency metrics (P95)
-            base_latency_p95 = int(slo_config.get('latency_p95_slo', '200ms').rstrip('ms'))
+            base_latency_p95 = int(slo_config.get("latency_p95_slo", "200ms").rstrip("ms"))
             # Add realistic variance (±20ms)
             current_latency_p95 = base_latency_p95 + np.random.normal(0, 15)
 
@@ -114,14 +122,18 @@ class SLOSLAReportGenerator:
                 current_value=current_latency_p95,
                 slo_target=base_latency_p95,
                 sla_target=500,  # External SLA commitment
-                status=self._get_compliance_status(current_latency_p95, base_latency_p95, inverse=True),
-                error_budget_consumed=max(0, (current_latency_p95 - base_latency_p95) / base_latency_p95 * 100),
-                timestamp=current_time
+                status=self._get_compliance_status(
+                    current_latency_p95, base_latency_p95, inverse=True
+                ),
+                error_budget_consumed=max(
+                    0, (current_latency_p95 - base_latency_p95) / base_latency_p95 * 100
+                ),
+                timestamp=current_time,
             )
             metrics.append(latency_p95_metric)
 
             # Generate error rate metrics
-            base_error_rate = float(slo_config.get('error_rate_slo', '0.1%').rstrip('%'))
+            base_error_rate = float(slo_config.get("error_rate_slo", "0.1%").rstrip("%"))
             # Add realistic variance
             current_error_rate = abs(base_error_rate + np.random.normal(0, 0.02))
 
@@ -131,9 +143,15 @@ class SLOSLAReportGenerator:
                 current_value=current_error_rate,
                 slo_target=base_error_rate,
                 sla_target=1.0,  # External SLA commitment
-                status=self._get_compliance_status(current_error_rate, base_error_rate, inverse=True),
-                error_budget_consumed=max(0, (current_error_rate - base_error_rate) / base_error_rate * 100) if base_error_rate > 0 else 0,
-                timestamp=current_time
+                status=self._get_compliance_status(
+                    current_error_rate, base_error_rate, inverse=True
+                ),
+                error_budget_consumed=(
+                    max(0, (current_error_rate - base_error_rate) / base_error_rate * 100)
+                    if base_error_rate > 0
+                    else 0
+                ),
+                timestamp=current_time,
             )
             metrics.append(error_rate_metric)
 
@@ -168,12 +186,14 @@ class SLOSLAReportGenerator:
             services[metric.service_name][metric.metric_name] = metric
 
         for service_name, service_metrics in services.items():
-            availability = service_metrics.get('availability')
-            latency_p95 = service_metrics.get('latency_p95')
-            error_rate = service_metrics.get('error_rate')
+            availability = service_metrics.get("availability")
+            latency_p95 = service_metrics.get("latency_p95")
+            error_rate = service_metrics.get("error_rate")
 
             # Calculate SLA compliance
-            sla_thresholds = self.sla_config.get('compliance_thresholds', {}).get('penalty_thresholds', {})
+            sla_thresholds = self.sla_config.get("compliance_thresholds", {}).get(
+                "penalty_thresholds", {}
+            )
 
             # Determine compliance status and penalties
             compliance_status = "compliant"
@@ -182,15 +202,15 @@ class SLOSLAReportGenerator:
 
             if availability:
                 avail_value = availability.current_value
-                if avail_value < sla_thresholds.get('availability', {}).get('tier_3', 98.0):
+                if avail_value < sla_thresholds.get("availability", {}).get("tier_3", 98.0):
                     compliance_status = "severe_breach"
                     penalties_applicable = True
                     credit_percentage = 50
-                elif avail_value < sla_thresholds.get('availability', {}).get('tier_2', 99.0):
+                elif avail_value < sla_thresholds.get("availability", {}).get("tier_2", 99.0):
                     compliance_status = "moderate_breach"
                     penalties_applicable = True
                     credit_percentage = 25
-                elif avail_value < sla_thresholds.get('availability', {}).get('tier_1', 99.5):
+                elif avail_value < sla_thresholds.get("availability", {}).get("tier_1", 99.5):
                     compliance_status = "minor_breach"
                     penalties_applicable = True
                     credit_percentage = 10
@@ -198,13 +218,17 @@ class SLOSLAReportGenerator:
             compliance = SLACompliance(
                 service_name=service_name,
                 availability_percent=availability.current_value if availability else 0,
-                avg_response_time=latency_p95.current_value * 0.7 if latency_p95 else 0,  # Estimate avg from p95
+                avg_response_time=(
+                    latency_p95.current_value * 0.7 if latency_p95 else 0
+                ),  # Estimate avg from p95
                 p95_response_time=latency_p95.current_value if latency_p95 else 0,
-                p99_response_time=latency_p95.current_value * 1.5 if latency_p95 else 0,  # Estimate p99 from p95
+                p99_response_time=(
+                    latency_p95.current_value * 1.5 if latency_p95 else 0
+                ),  # Estimate p99 from p95
                 error_rate=error_rate.current_value if error_rate else 0,
                 compliance_status=compliance_status,
                 penalties_applicable=penalties_applicable,
-                credit_percentage=credit_percentage
+                credit_percentage=credit_percentage,
             )
             compliance_reports.append(compliance)
 
@@ -218,17 +242,21 @@ class SLOSLAReportGenerator:
 
         # Create subplots
         fig = make_subplots(
-            rows=3, cols=2,
+            rows=3,
+            cols=2,
             subplot_titles=(
-                'Service Availability SLOs', 'Response Time SLOs',
-                'Error Rate SLOs', 'Error Budget Consumption',
-                'SLO Compliance Summary', 'Trend Analysis'
+                "Service Availability SLOs",
+                "Response Time SLOs",
+                "Error Rate SLOs",
+                "Error Budget Consumption",
+                "SLO Compliance Summary",
+                "Trend Analysis",
             ),
             specs=[
                 [{"type": "bar"}, {"type": "bar"}],
                 [{"type": "bar"}, {"type": "bar"}],
-                [{"type": "table"}, {"type": "scatter"}]
-            ]
+                [{"type": "table"}, {"type": "scatter"}],
+            ],
         )
 
         # Group metrics by type
@@ -248,12 +276,19 @@ class SLOSLAReportGenerator:
 
             fig.add_trace(
                 go.Bar(name="Current", x=services, y=current_vals, marker_color=colors),
-                row=1, col=1
+                row=1,
+                col=1,
             )
             fig.add_trace(
-                go.Scatter(name="SLO Target", x=services, y=target_vals, mode="markers",
-                          marker=dict(symbol="diamond", size=10, color="blue")),
-                row=1, col=1
+                go.Scatter(
+                    name="SLO Target",
+                    x=services,
+                    y=target_vals,
+                    mode="markers",
+                    marker=dict(symbol="diamond", size=10, color="blue"),
+                ),
+                row=1,
+                col=1,
             )
 
         # 2. Response Time
@@ -265,12 +300,19 @@ class SLOSLAReportGenerator:
 
             fig.add_trace(
                 go.Bar(name="Current (ms)", x=services, y=current_vals, marker_color=colors),
-                row=1, col=2
+                row=1,
+                col=2,
             )
             fig.add_trace(
-                go.Scatter(name="SLO Target (ms)", x=services, y=target_vals, mode="markers",
-                          marker=dict(symbol="diamond", size=10, color="blue")),
-                row=1, col=2
+                go.Scatter(
+                    name="SLO Target (ms)",
+                    x=services,
+                    y=target_vals,
+                    mode="markers",
+                    marker=dict(symbol="diamond", size=10, color="blue"),
+                ),
+                row=1,
+                col=2,
             )
 
         # 3. Error Rate
@@ -282,41 +324,60 @@ class SLOSLAReportGenerator:
 
             fig.add_trace(
                 go.Bar(name="Current (%)", x=services, y=current_vals, marker_color=colors),
-                row=2, col=1
+                row=2,
+                col=1,
             )
             fig.add_trace(
-                go.Scatter(name="SLO Target (%)", x=services, y=target_vals, mode="markers",
-                          marker=dict(symbol="diamond", size=10, color="blue")),
-                row=2, col=1
+                go.Scatter(
+                    name="SLO Target (%)",
+                    x=services,
+                    y=target_vals,
+                    mode="markers",
+                    marker=dict(symbol="diamond", size=10, color="blue"),
+                ),
+                row=2,
+                col=1,
             )
 
         # 4. Error Budget Consumption
         services = [m.service_name for m in metrics if m.metric_name == "availability"]
-        budget_consumed = [m.error_budget_consumed for m in metrics if m.metric_name == "availability"]
+        budget_consumed = [
+            m.error_budget_consumed for m in metrics if m.metric_name == "availability"
+        ]
 
         fig.add_trace(
-            go.Bar(name="Budget Consumed (%)", x=services, y=budget_consumed,
-                  marker_color=["red" if b > 50 else "orange" if b > 25 else "green" for b in budget_consumed]),
-            row=2, col=2
+            go.Bar(
+                name="Budget Consumed (%)",
+                x=services,
+                y=budget_consumed,
+                marker_color=[
+                    "red" if b > 50 else "orange" if b > 25 else "green" for b in budget_consumed
+                ],
+            ),
+            row=2,
+            col=2,
         )
 
         # 5. Compliance Summary Table
         compliance_data = []
         for metric in metrics:
-            compliance_data.append([
-                metric.service_name,
-                metric.metric_name,
-                f"{metric.current_value:.2f}",
-                f"{metric.slo_target:.2f}",
-                metric.status
-            ])
+            compliance_data.append(
+                [
+                    metric.service_name,
+                    metric.metric_name,
+                    f"{metric.current_value:.2f}",
+                    f"{metric.slo_target:.2f}",
+                    metric.status,
+                ]
+            )
 
         fig.add_trace(
             go.Table(
                 header=dict(values=["Service", "Metric", "Current", "Target", "Status"]),
-                cells=dict(values=list(zip(*compliance_data)))
+                cells=dict(values=list(zip(*compliance_data))),
             ),
-            row=3, col=1
+            row=3,
+            col=1,
         )
 
         # 6. Trend Analysis (mock data for demo)
@@ -324,9 +385,11 @@ class SLOSLAReportGenerator:
         availability_trend = [99.9 + np.random.normal(0, 0.1) for _ in days]
 
         fig.add_trace(
-            go.Scatter(x=days, y=availability_trend, mode="lines+markers",
-                      name="Availability Trend"),
-            row=3, col=2
+            go.Scatter(
+                x=days, y=availability_trend, mode="lines+markers", name="Availability Trend"
+            ),
+            row=3,
+            col=2,
         )
 
         # Update layout
@@ -334,7 +397,7 @@ class SLOSLAReportGenerator:
             height=1200,
             showlegend=True,
             title_text="E-Commerce Microservices SLO Dashboard",
-            title_x=0.5
+            title_x=0.5,
         )
 
         # Save the dashboard
@@ -344,8 +407,9 @@ class SLOSLAReportGenerator:
 
         return output_path
 
-    def generate_excel_report(self, metrics: List[SLOMetric], compliance: List[SLACompliance],
-                            output_path: str = None) -> str:
+    def generate_excel_report(
+        self, metrics: List[SLOMetric], compliance: List[SLACompliance], output_path: str = None
+    ) -> str:
         """Generate comprehensive Excel report"""
         if not output_path:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -353,50 +417,62 @@ class SLOSLAReportGenerator:
 
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
-        with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
+        with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
             # 1. Executive Summary
             exec_summary = self._create_executive_summary(metrics, compliance)
-            exec_summary.to_excel(writer, sheet_name='Executive Summary', index=False)
+            exec_summary.to_excel(writer, sheet_name="Executive Summary", index=False)
 
             # 2. SLO Metrics Detail
-            slo_df = pd.DataFrame([{
-                'Service': m.service_name,
-                'Metric': m.metric_name,
-                'Current Value': m.current_value,
-                'SLO Target': m.slo_target,
-                'SLA Target': m.sla_target,
-                'Status': m.status,
-                'Error Budget Consumed (%)': m.error_budget_consumed,
-                'Timestamp': m.timestamp
-            } for m in metrics])
-            slo_df.to_excel(writer, sheet_name='SLO Metrics', index=False)
+            slo_df = pd.DataFrame(
+                [
+                    {
+                        "Service": m.service_name,
+                        "Metric": m.metric_name,
+                        "Current Value": m.current_value,
+                        "SLO Target": m.slo_target,
+                        "SLA Target": m.sla_target,
+                        "Status": m.status,
+                        "Error Budget Consumed (%)": m.error_budget_consumed,
+                        "Timestamp": m.timestamp,
+                    }
+                    for m in metrics
+                ]
+            )
+            slo_df.to_excel(writer, sheet_name="SLO Metrics", index=False)
 
             # 3. SLA Compliance
-            sla_df = pd.DataFrame([{
-                'Service': c.service_name,
-                'Availability (%)': c.availability_percent,
-                'Avg Response Time (ms)': c.avg_response_time,
-                'P95 Response Time (ms)': c.p95_response_time,
-                'P99 Response Time (ms)': c.p99_response_time,
-                'Error Rate (%)': c.error_rate,
-                'Compliance Status': c.compliance_status,
-                'Penalties Applicable': c.penalties_applicable,
-                'Credit Percentage': c.credit_percentage
-            } for c in compliance])
-            sla_df.to_excel(writer, sheet_name='SLA Compliance', index=False)
+            sla_df = pd.DataFrame(
+                [
+                    {
+                        "Service": c.service_name,
+                        "Availability (%)": c.availability_percent,
+                        "Avg Response Time (ms)": c.avg_response_time,
+                        "P95 Response Time (ms)": c.p95_response_time,
+                        "P99 Response Time (ms)": c.p99_response_time,
+                        "Error Rate (%)": c.error_rate,
+                        "Compliance Status": c.compliance_status,
+                        "Penalties Applicable": c.penalties_applicable,
+                        "Credit Percentage": c.credit_percentage,
+                    }
+                    for c in compliance
+                ]
+            )
+            sla_df.to_excel(writer, sheet_name="SLA Compliance", index=False)
 
             # 4. Error Budget Analysis
             error_budget_df = self._create_error_budget_analysis(metrics)
-            error_budget_df.to_excel(writer, sheet_name='Error Budget Analysis', index=False)
+            error_budget_df.to_excel(writer, sheet_name="Error Budget Analysis", index=False)
 
             # 5. Recommendations
             recommendations_df = self._create_recommendations(metrics, compliance)
-            recommendations_df.to_excel(writer, sheet_name='Recommendations', index=False)
+            recommendations_df.to_excel(writer, sheet_name="Recommendations", index=False)
 
         self.logger.info(f"Excel report saved to {output_path}")
         return output_path
 
-    def _create_executive_summary(self, metrics: List[SLOMetric], compliance: List[SLACompliance]) -> pd.DataFrame:
+    def _create_executive_summary(
+        self, metrics: List[SLOMetric], compliance: List[SLACompliance]
+    ) -> pd.DataFrame:
         """Create executive summary dataframe"""
         total_services = len(set(m.service_name for m in metrics))
         compliant_services = len([m for m in metrics if m.status == "compliant"])
@@ -413,37 +489,50 @@ class SLOSLAReportGenerator:
             {"Metric": "Services with SLO Breaches", "Value": breached_services},
             {"Metric": "SLA Breaches (Penalties)", "Value": sla_breaches},
             {"Metric": "Total Credit Exposure (%)", "Value": f"{total_credit_exposure:.1f}%"},
-            {"Metric": "Overall System Health", "Value": "Good" if breached_services == 0 else "Needs Attention"},
-            {"Metric": "Report Generated", "Value": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+            {
+                "Metric": "Overall System Health",
+                "Value": "Good" if breached_services == 0 else "Needs Attention",
+            },
+            {"Metric": "Report Generated", "Value": datetime.now().strftime("%Y-%m-%d %H:%M:%S")},
         ]
 
         return pd.DataFrame(summary_data)
 
     def _create_error_budget_analysis(self, metrics: List[SLOMetric]) -> pd.DataFrame:
         """Create error budget analysis"""
-        error_budgets = self.slo_config.get('error_budgets', {}).get('monthly_budgets', {})
+        error_budgets = self.slo_config.get("error_budgets", {}).get("monthly_budgets", {})
 
         budget_data = []
         for service_name, budget_minutes in error_budgets.items():
             service_metrics = [m for m in metrics if m.service_name == service_name]
             if service_metrics:
                 # Find availability metric for error budget calculation
-                availability_metric = next((m for m in service_metrics if m.metric_name == "availability"), None)
+                availability_metric = next(
+                    (m for m in service_metrics if m.metric_name == "availability"), None
+                )
                 if availability_metric:
                     consumed_percent = availability_metric.error_budget_consumed
                     remaining_minutes = budget_minutes * (100 - consumed_percent) / 100
 
-                    budget_data.append({
-                        "Service": service_name,
-                        "Monthly Budget (minutes)": budget_minutes,
-                        "Consumed (%)": f"{consumed_percent:.2f}%",
-                        "Remaining (minutes)": f"{remaining_minutes:.1f}",
-                        "Status": "Critical" if consumed_percent > 90 else "Warning" if consumed_percent > 50 else "Healthy"
-                    })
+                    budget_data.append(
+                        {
+                            "Service": service_name,
+                            "Monthly Budget (minutes)": budget_minutes,
+                            "Consumed (%)": f"{consumed_percent:.2f}%",
+                            "Remaining (minutes)": f"{remaining_minutes:.1f}",
+                            "Status": (
+                                "Critical"
+                                if consumed_percent > 90
+                                else "Warning" if consumed_percent > 50 else "Healthy"
+                            ),
+                        }
+                    )
 
         return pd.DataFrame(budget_data)
 
-    def _create_recommendations(self, metrics: List[SLOMetric], compliance: List[SLACompliance]) -> pd.DataFrame:
+    def _create_recommendations(
+        self, metrics: List[SLOMetric], compliance: List[SLACompliance]
+    ) -> pd.DataFrame:
         """Create recommendations based on current status"""
         recommendations = []
 
@@ -452,42 +541,50 @@ class SLOSLAReportGenerator:
         at_risk_services = [m for m in metrics if m.status == "at_risk"]
 
         for metric in breached_services:
-            recommendations.append({
-                "Priority": "High",
-                "Service": metric.service_name,
-                "Issue": f"{metric.metric_name} SLO breach",
-                "Recommendation": f"Immediate investigation required for {metric.metric_name} performance",
-                "Impact": "SLA penalties may apply"
-            })
+            recommendations.append(
+                {
+                    "Priority": "High",
+                    "Service": metric.service_name,
+                    "Issue": f"{metric.metric_name} SLO breach",
+                    "Recommendation": f"Immediate investigation required for {metric.metric_name} performance",
+                    "Impact": "SLA penalties may apply",
+                }
+            )
 
         for metric in at_risk_services:
-            recommendations.append({
-                "Priority": "Medium",
-                "Service": metric.service_name,
-                "Issue": f"{metric.metric_name} approaching SLO threshold",
-                "Recommendation": f"Monitor {metric.metric_name} closely and consider optimization",
-                "Impact": "Risk of SLO breach"
-            })
+            recommendations.append(
+                {
+                    "Priority": "Medium",
+                    "Service": metric.service_name,
+                    "Issue": f"{metric.metric_name} approaching SLO threshold",
+                    "Recommendation": f"Monitor {metric.metric_name} closely and consider optimization",
+                    "Impact": "Risk of SLO breach",
+                }
+            )
 
         # SLA compliance recommendations
         for comp in compliance:
             if comp.penalties_applicable:
-                recommendations.append({
-                    "Priority": "Critical",
-                    "Service": comp.service_name,
-                    "Issue": "SLA breach with financial penalties",
-                    "Recommendation": "Immediate remediation required, consider customer credits",
-                    "Impact": f"{comp.credit_percentage}% customer credit exposure"
-                })
+                recommendations.append(
+                    {
+                        "Priority": "Critical",
+                        "Service": comp.service_name,
+                        "Issue": "SLA breach with financial penalties",
+                        "Recommendation": "Immediate remediation required, consider customer credits",
+                        "Impact": f"{comp.credit_percentage}% customer credit exposure",
+                    }
+                )
 
         if not recommendations:
-            recommendations.append({
-                "Priority": "Info",
-                "Service": "All Services",
-                "Issue": "No critical issues detected",
-                "Recommendation": "Continue monitoring and maintain current practices",
-                "Impact": "System operating within acceptable parameters"
-            })
+            recommendations.append(
+                {
+                    "Priority": "Info",
+                    "Service": "All Services",
+                    "Issue": "No critical issues detected",
+                    "Recommendation": "Continue monitoring and maintain current practices",
+                    "Impact": "System operating within acceptable parameters",
+                }
+            )
 
         return pd.DataFrame(recommendations)
 
@@ -504,15 +601,15 @@ class SLOSLAReportGenerator:
 
         # 1. Interactive Dashboard
         dashboard_path = self.create_slo_dashboard(metrics)
-        results['dashboard'] = dashboard_path
+        results["dashboard"] = dashboard_path
 
         # 2. Excel Report
         excel_path = self.generate_excel_report(metrics, compliance)
-        results['excel_report'] = excel_path
+        results["excel_report"] = excel_path
 
         # 3. JSON Data Export
         json_path = self._export_json_data(metrics, compliance)
-        results['json_data'] = json_path
+        results["json_data"] = json_path
 
         self.logger.info("Comprehensive SLO/SLA report generation completed")
         return results
@@ -526,7 +623,7 @@ class SLOSLAReportGenerator:
             "report_metadata": {
                 "generated_at": datetime.now().isoformat(),
                 "report_type": "SLO/SLA Compliance Report",
-                "data_period_days": 30
+                "data_period_days": 30,
             },
             "slo_metrics": [
                 {
@@ -537,8 +634,9 @@ class SLOSLAReportGenerator:
                     "sla_target": m.sla_target,
                     "status": m.status,
                     "error_budget_consumed": m.error_budget_consumed,
-                    "timestamp": m.timestamp.isoformat()
-                } for m in metrics
+                    "timestamp": m.timestamp.isoformat(),
+                }
+                for m in metrics
             ],
             "sla_compliance": [
                 {
@@ -550,13 +648,14 @@ class SLOSLAReportGenerator:
                     "error_rate": c.error_rate,
                     "compliance_status": c.compliance_status,
                     "penalties_applicable": c.penalties_applicable,
-                    "credit_percentage": c.credit_percentage
-                } for c in compliance
-            ]
+                    "credit_percentage": c.credit_percentage,
+                }
+                for c in compliance
+            ],
         }
 
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(data, f, indent=2)
 
         self.logger.info(f"JSON data exported to {output_path}")
@@ -566,8 +665,7 @@ class SLOSLAReportGenerator:
 if __name__ == "__main__":
     # Configure logging
     logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
     # Generate comprehensive report

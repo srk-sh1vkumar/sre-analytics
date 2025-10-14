@@ -7,27 +7,27 @@ severity analysis, and affected service identification.
 
 import logging
 import random
-from datetime import datetime, timedelta
-from typing import List, Dict, Any
 from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any, Dict, List
 
 from src.config.app_config import get_config
 from src.config.constants import (
+    AVAILABILITY_MIN,
+    AVAILABILITY_NOISE_STD,
     DEFAULT_INCIDENT_DURATION_HOURS,
+    DEGRADATION_FACTOR_MAX,
+    DEGRADATION_FACTOR_MIN,
+    ERROR_RATE_CRITICAL,
+    ERROR_RATE_NOISE_STD,
+    LATENCY_NOISE_STD,
+    LATENCY_P95_CRITICAL_MS,
     SEVERITY_CRITICAL,
     SEVERITY_HIGH,
-    SEVERITY_MEDIUM,
     SEVERITY_LOW,
-    AVAILABILITY_MIN,
-    LATENCY_P95_CRITICAL_MS,
-    ERROR_RATE_CRITICAL,
-    DEGRADATION_FACTOR_MIN,
-    DEGRADATION_FACTOR_MAX,
-    AVAILABILITY_NOISE_STD,
-    LATENCY_NOISE_STD,
-    ERROR_RATE_NOISE_STD
+    SEVERITY_MEDIUM,
 )
-from src.reports.llm_analyzer import LLMAnalyzer, IncidentData, PerformanceSnapshot
+from src.reports.llm_analyzer import IncidentData, LLMAnalyzer, PerformanceSnapshot
 
 
 class IncidentGenerator:
@@ -44,9 +44,12 @@ class IncidentGenerator:
         self.logger = logging.getLogger(__name__)
         self.llm_analyzer = LLMAnalyzer(provider=llm_provider, api_key=llm_api_key)
 
-    def generate_incident_report(self, application_name: str,
-                                start_time: datetime,
-                                duration_hours: float = DEFAULT_INCIDENT_DURATION_HOURS) -> IncidentData:
+    def generate_incident_report(
+        self,
+        application_name: str,
+        start_time: datetime,
+        duration_hours: float = DEFAULT_INCIDENT_DURATION_HOURS,
+    ) -> IncidentData:
         """
         Generate a comprehensive incident report with LLM analysis
 
@@ -86,10 +89,10 @@ class IncidentGenerator:
                 "Scaled up affected service instances",
                 "Applied database query optimization",
                 "Implemented circuit breaker to prevent cascading failures",
-                "Verified system recovery and performance normalization"
+                "Verified system recovery and performance normalization",
             ],
             llm_analysis="",
-            lessons_learned=""
+            lessons_learned="",
         )
 
         # Get LLM-powered root cause analysis
@@ -104,8 +107,9 @@ class IncidentGenerator:
 
         return incident
 
-    def _generate_incident_snapshots(self, app_name: str, start_time: datetime,
-                                     end_time: datetime) -> List[PerformanceSnapshot]:
+    def _generate_incident_snapshots(
+        self, app_name: str, start_time: datetime, end_time: datetime
+    ) -> List[PerformanceSnapshot]:
         """
         Generate realistic performance snapshots during an incident
 
@@ -124,8 +128,12 @@ class IncidentGenerator:
         # Simulate degradation pattern
         while current_time <= end_time:
             # Progressive degradation then recovery
-            time_ratio = (current_time - start_time).total_seconds() / (end_time - start_time).total_seconds()
-            degradation_factor = DEGRADATION_FACTOR_MIN + (DEGRADATION_FACTOR_MAX - DEGRADATION_FACTOR_MIN) * (
+            time_ratio = (current_time - start_time).total_seconds() / (
+                end_time - start_time
+            ).total_seconds()
+            degradation_factor = DEGRADATION_FACTOR_MIN + (
+                DEGRADATION_FACTOR_MAX - DEGRADATION_FACTOR_MIN
+            ) * (
                 1 - abs(2 * time_ratio - 1)  # Peak degradation at midpoint
             )
 
@@ -133,22 +141,33 @@ class IncidentGenerator:
                 service_name=app_name,
                 timestamp=current_time,
                 metrics={
-                    'availability': max(90.0, AVAILABILITY_MIN - degradation_factor * 2 + random.gauss(0, AVAILABILITY_NOISE_STD)),
-                    'latency_p95': LATENCY_P95_CRITICAL_MS * degradation_factor + random.gauss(0, LATENCY_NOISE_STD),
-                    'error_rate': ERROR_RATE_CRITICAL * degradation_factor + random.gauss(0, ERROR_RATE_NOISE_STD),
-                    'cpu_usage': min(95.0, 60 + degradation_factor * 15),
-                    'memory_usage': min(90.0, 50 + degradation_factor * 20)
+                    "availability": max(
+                        90.0,
+                        AVAILABILITY_MIN
+                        - degradation_factor * 2
+                        + random.gauss(0, AVAILABILITY_NOISE_STD),
+                    ),
+                    "latency_p95": LATENCY_P95_CRITICAL_MS * degradation_factor
+                    + random.gauss(0, LATENCY_NOISE_STD),
+                    "error_rate": ERROR_RATE_CRITICAL * degradation_factor
+                    + random.gauss(0, ERROR_RATE_NOISE_STD),
+                    "cpu_usage": min(95.0, 60 + degradation_factor * 15),
+                    "memory_usage": min(90.0, 50 + degradation_factor * 20),
                 },
                 logs=[
                     f"[{current_time}] High latency detected in API endpoints",
                     f"[{current_time}] Database connection pool exhausted",
-                    f"[{current_time}] Increased error rate in downstream services"
+                    f"[{current_time}] Increased error rate in downstream services",
                 ],
-                errors=[
-                    "TimeoutException: Request timed out after 30s",
-                    "DatabaseConnectionError: Connection pool exhausted",
-                    "CircuitBreakerOpenException: Circuit breaker opened due to high failure rate"
-                ] if degradation_factor > 2.0 else []
+                errors=(
+                    [
+                        "TimeoutException: Request timed out after 30s",
+                        "DatabaseConnectionError: Connection pool exhausted",
+                        "CircuitBreakerOpenException: Circuit breaker opened due to high failure rate",
+                    ]
+                    if degradation_factor > 2.0
+                    else []
+                ),
             )
             snapshots.append(snapshot)
             current_time += interval
@@ -169,9 +188,9 @@ class IncidentGenerator:
         for snapshot in snapshots:
             affected.add(snapshot.service_name)
             # Add related services based on error patterns
-            if any('Database' in error for error in snapshot.errors):
+            if any("Database" in error for error in snapshot.errors):
                 affected.add(f"{snapshot.service_name}-database")
-            if snapshot.metrics.get('error_rate', 0) > ERROR_RATE_CRITICAL:
+            if snapshot.metrics.get("error_rate", 0) > ERROR_RATE_CRITICAL:
                 affected.add(f"{snapshot.service_name}-api")
 
         return sorted(list(affected))
@@ -187,9 +206,11 @@ class IncidentGenerator:
             str: Initial root cause hypothesis
         """
         # Analyze error patterns
-        db_errors = sum(1 for s in snapshots for e in s.errors if 'Database' in e)
-        timeout_errors = sum(1 for s in snapshots for e in s.errors if 'Timeout' in e)
-        circuit_breaker_errors = sum(1 for s in snapshots for e in s.errors if 'CircuitBreaker' in e)
+        db_errors = sum(1 for s in snapshots for e in s.errors if "Database" in e)
+        timeout_errors = sum(1 for s in snapshots for e in s.errors if "Timeout" in e)
+        circuit_breaker_errors = sum(
+            1 for s in snapshots for e in s.errors if "CircuitBreaker" in e
+        )
 
         # Determine root cause based on dominant error type
         if db_errors > max(timeout_errors, circuit_breaker_errors):
@@ -211,9 +232,9 @@ class IncidentGenerator:
         Returns:
             str: Severity level (Critical/High/Medium/Low)
         """
-        max_error_rate = max(s.metrics.get('error_rate', 0) for s in snapshots)
-        min_availability = min(s.metrics.get('availability', 100) for s in snapshots)
-        max_latency = max(s.metrics.get('latency_p95', 0) for s in snapshots)
+        max_error_rate = max(s.metrics.get("error_rate", 0) for s in snapshots)
+        min_availability = min(s.metrics.get("availability", 100) for s in snapshots)
+        max_latency = max(s.metrics.get("latency_p95", 0) for s in snapshots)
 
         # Critical: Major service disruption
         if min_availability < 95.0 or max_error_rate > 10.0:

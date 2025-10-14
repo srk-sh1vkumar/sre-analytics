@@ -4,19 +4,21 @@ AI-powered recommendations for multi-source metrics analysis
 """
 
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
-import pandas as pd
-import numpy as np
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple
 
+import numpy as np
+import pandas as pd
+
+from ..data_sources.base import MetricType, StandardMetric
 from .generic_metrics_engine import AnalysisResult, SLOResult, SLOTarget
-from ..data_sources.base import StandardMetric, MetricType
 
 
 @dataclass
 class Recommendation:
     """Enhanced recommendation structure"""
+
     category: str  # "performance", "reliability", "scalability", "cost", "security"
     priority: str  # "critical", "high", "medium", "low"
     title: str
@@ -33,6 +35,7 @@ class Recommendation:
 @dataclass
 class RecommendationContext:
     """Context for generating recommendations"""
+
     service_name: str
     analysis_result: AnalysisResult
     historical_data: List[StandardMetric]
@@ -52,37 +55,72 @@ class EnhancedRecommendationSystem:
         return {
             "performance_patterns": {
                 "high_response_time": {
-                    "common_causes": ["database queries", "external API calls", "inefficient algorithms", "resource contention"],
-                    "solutions": ["caching", "database optimization", "async processing", "load balancing"],
-                    "monitoring": ["response time percentiles", "database query performance", "CPU/memory usage"]
+                    "common_causes": [
+                        "database queries",
+                        "external API calls",
+                        "inefficient algorithms",
+                        "resource contention",
+                    ],
+                    "solutions": [
+                        "caching",
+                        "database optimization",
+                        "async processing",
+                        "load balancing",
+                    ],
+                    "monitoring": [
+                        "response time percentiles",
+                        "database query performance",
+                        "CPU/memory usage",
+                    ],
                 },
                 "high_error_rate": {
-                    "common_causes": ["application bugs", "external service failures", "resource exhaustion", "configuration issues"],
-                    "solutions": ["circuit breakers", "retry mechanisms", "error handling", "monitoring"],
-                    "monitoring": ["error logs", "dependency health", "resource utilization"]
-                }
+                    "common_causes": [
+                        "application bugs",
+                        "external service failures",
+                        "resource exhaustion",
+                        "configuration issues",
+                    ],
+                    "solutions": [
+                        "circuit breakers",
+                        "retry mechanisms",
+                        "error handling",
+                        "monitoring",
+                    ],
+                    "monitoring": ["error logs", "dependency health", "resource utilization"],
+                },
             },
             "scalability_thresholds": {
                 "cpu_utilization": {"warning": 70, "critical": 85},
                 "memory_utilization": {"warning": 75, "critical": 90},
                 "response_time": {"warning": 200, "critical": 500},
-                "error_rate": {"warning": 1, "critical": 5}
+                "error_rate": {"warning": 1, "critical": 5},
             },
             "technology_recommendations": {
                 "caching": {
-                    "redis": {"use_cases": ["session storage", "frequently accessed data"], "complexity": "low"},
+                    "redis": {
+                        "use_cases": ["session storage", "frequently accessed data"],
+                        "complexity": "low",
+                    },
                     "memcached": {"use_cases": ["simple key-value caching"], "complexity": "low"},
-                    "cdn": {"use_cases": ["static content", "geographic distribution"], "complexity": "medium"}
+                    "cdn": {
+                        "use_cases": ["static content", "geographic distribution"],
+                        "complexity": "medium",
+                    },
                 },
                 "load_balancing": {
-                    "nginx": {"use_cases": ["http load balancing", "reverse proxy"], "complexity": "low"},
+                    "nginx": {
+                        "use_cases": ["http load balancing", "reverse proxy"],
+                        "complexity": "low",
+                    },
                     "haproxy": {"use_cases": ["tcp/http load balancing"], "complexity": "medium"},
-                    "cloud_lb": {"use_cases": ["cloud-native applications"], "complexity": "low"}
-                }
-            }
+                    "cloud_lb": {"use_cases": ["cloud-native applications"], "complexity": "low"},
+                },
+            },
         }
 
-    def generate_comprehensive_recommendations(self, contexts: List[RecommendationContext]) -> Dict[str, List[Recommendation]]:
+    def generate_comprehensive_recommendations(
+        self, contexts: List[RecommendationContext]
+    ) -> Dict[str, List[Recommendation]]:
         """Generate comprehensive recommendations for multiple services"""
         all_recommendations = {}
 
@@ -91,7 +129,9 @@ class EnhancedRecommendationSystem:
                 service_recommendations = self._generate_service_recommendations(context)
                 all_recommendations[context.service_name] = service_recommendations
             except Exception as e:
-                self.logger.error(f"Error generating recommendations for {context.service_name}: {e}")
+                self.logger.error(
+                    f"Error generating recommendations for {context.service_name}: {e}"
+                )
                 all_recommendations[context.service_name] = []
 
         # Generate cross-service recommendations
@@ -101,7 +141,9 @@ class EnhancedRecommendationSystem:
 
         return all_recommendations
 
-    def _generate_service_recommendations(self, context: RecommendationContext) -> List[Recommendation]:
+    def _generate_service_recommendations(
+        self, context: RecommendationContext
+    ) -> List[Recommendation]:
         """Generate recommendations for a single service"""
         recommendations = []
 
@@ -122,15 +164,13 @@ class EnhancedRecommendationSystem:
             recommendations.extend(ai_recs)
 
         # Sort by priority and confidence
-        recommendations.sort(key=lambda x: (
-            self._priority_score(x.priority),
-            -x.confidence_score
-        ))
+        recommendations.sort(key=lambda x: (self._priority_score(x.priority), -x.confidence_score))
 
         return recommendations
 
-    def _generate_metric_specific_recommendation(self, slo_result: SLOResult,
-                                               context: RecommendationContext) -> Optional[Recommendation]:
+    def _generate_metric_specific_recommendation(
+        self, slo_result: SLOResult, context: RecommendationContext
+    ) -> Optional[Recommendation]:
         """Generate specific recommendation based on SLO violation"""
         try:
             metric_type = slo_result.metric_type
@@ -153,8 +193,9 @@ class EnhancedRecommendationSystem:
             self.logger.error(f"Error generating metric-specific recommendation: {e}")
             return None
 
-    def _recommend_response_time_optimization(self, slo_result: SLOResult,
-                                            context: RecommendationContext) -> Recommendation:
+    def _recommend_response_time_optimization(
+        self, slo_result: SLOResult, context: RecommendationContext
+    ) -> Recommendation:
         """Recommend response time optimization"""
         current_value = slo_result.current_value
         target_value = slo_result.target_value
@@ -166,14 +207,16 @@ class EnhancedRecommendationSystem:
         action_items = [
             "Implement Redis caching for frequently accessed data",
             "Optimize database queries and add appropriate indexes",
-            "Consider implementing CDN for static content"
+            "Consider implementing CDN for static content",
         ]
 
         if current_value > 500:
-            action_items.extend([
-                "Review application architecture for bottlenecks",
-                "Consider horizontal scaling or load balancing"
-            ])
+            action_items.extend(
+                [
+                    "Review application architecture for bottlenecks",
+                    "Consider horizontal scaling or load balancing",
+                ]
+            )
 
         return Recommendation(
             category="performance",
@@ -189,12 +232,13 @@ class EnhancedRecommendationSystem:
             supporting_evidence=[
                 f"Current response time: {current_value:.1f}ms",
                 f"Target: {target_value:.1f}ms",
-                f"Trend: {slo_result.trend}"
-            ]
+                f"Trend: {slo_result.trend}",
+            ],
         )
 
-    def _recommend_error_rate_reduction(self, slo_result: SLOResult,
-                                      context: RecommendationContext) -> Recommendation:
+    def _recommend_error_rate_reduction(
+        self, slo_result: SLOResult, context: RecommendationContext
+    ) -> Recommendation:
         """Recommend error rate reduction"""
         current_rate = slo_result.current_value
         target_rate = slo_result.target_value
@@ -205,14 +249,16 @@ class EnhancedRecommendationSystem:
         action_items = [
             "Implement circuit breaker pattern for external dependencies",
             "Add comprehensive error handling and retry logic",
-            "Set up detailed error monitoring and alerting"
+            "Set up detailed error monitoring and alerting",
         ]
 
         if current_rate > 10:
-            action_items.extend([
-                "Conduct immediate root cause analysis",
-                "Review recent deployments for potential issues"
-            ])
+            action_items.extend(
+                [
+                    "Conduct immediate root cause analysis",
+                    "Review recent deployments for potential issues",
+                ]
+            )
 
         return Recommendation(
             category="reliability",
@@ -228,12 +274,13 @@ class EnhancedRecommendationSystem:
             supporting_evidence=[
                 f"Current error rate: {current_rate:.2f}%",
                 f"Target: {target_rate:.2f}%",
-                f"Error budget consumed: {slo_result.error_budget_consumed:.1f}%"
-            ]
+                f"Error budget consumed: {slo_result.error_budget_consumed:.1f}%",
+            ],
         )
 
-    def _recommend_cpu_optimization(self, slo_result: SLOResult,
-                                  context: RecommendationContext) -> Recommendation:
+    def _recommend_cpu_optimization(
+        self, slo_result: SLOResult, context: RecommendationContext
+    ) -> Recommendation:
         """Recommend CPU optimization"""
         current_cpu = slo_result.current_value
         target_cpu = slo_result.target_value
@@ -244,14 +291,16 @@ class EnhancedRecommendationSystem:
         action_items = [
             "Profile application to identify CPU-intensive operations",
             "Optimize algorithms and reduce computational complexity",
-            "Consider horizontal scaling to distribute load"
+            "Consider horizontal scaling to distribute load",
         ]
 
         if current_cpu > 85:
-            action_items.extend([
-                "Implement auto-scaling policies",
-                "Review resource allocation and container limits"
-            ])
+            action_items.extend(
+                [
+                    "Implement auto-scaling policies",
+                    "Review resource allocation and container limits",
+                ]
+            )
 
         return Recommendation(
             category="scalability",
@@ -267,12 +316,13 @@ class EnhancedRecommendationSystem:
             supporting_evidence=[
                 f"Current CPU usage: {current_cpu:.1f}%",
                 f"Target: {target_cpu:.1f}%",
-                f"Trend: {slo_result.trend}"
-            ]
+                f"Trend: {slo_result.trend}",
+            ],
         )
 
-    def _recommend_memory_optimization(self, slo_result: SLOResult,
-                                     context: RecommendationContext) -> Recommendation:
+    def _recommend_memory_optimization(
+        self, slo_result: SLOResult, context: RecommendationContext
+    ) -> Recommendation:
         """Recommend memory optimization"""
         current_memory = slo_result.current_value
         target_memory = slo_result.target_value
@@ -283,14 +333,16 @@ class EnhancedRecommendationSystem:
         action_items = [
             "Profile memory usage to identify memory leaks",
             "Optimize data structures and caching strategies",
-            "Review garbage collection settings"
+            "Review garbage collection settings",
         ]
 
         if current_memory > 90:
-            action_items.extend([
-                "Increase memory allocation or scale horizontally",
-                "Implement memory monitoring and alerting"
-            ])
+            action_items.extend(
+                [
+                    "Increase memory allocation or scale horizontally",
+                    "Implement memory monitoring and alerting",
+                ]
+            )
 
         return Recommendation(
             category="scalability",
@@ -306,12 +358,13 @@ class EnhancedRecommendationSystem:
             supporting_evidence=[
                 f"Current memory usage: {current_memory:.1f}%",
                 f"Target: {target_memory:.1f}%",
-                f"Risk of memory exhaustion"
-            ]
+                f"Risk of memory exhaustion",
+            ],
         )
 
-    def _recommend_availability_improvement(self, slo_result: SLOResult,
-                                          context: RecommendationContext) -> Recommendation:
+    def _recommend_availability_improvement(
+        self, slo_result: SLOResult, context: RecommendationContext
+    ) -> Recommendation:
         """Recommend availability improvement"""
         current_availability = slo_result.current_value
         target_availability = slo_result.target_value
@@ -322,7 +375,7 @@ class EnhancedRecommendationSystem:
         action_items = [
             "Implement health checks and readiness probes",
             "Set up automated failover and recovery mechanisms",
-            "Review and improve deployment strategies (blue-green, canary)"
+            "Review and improve deployment strategies (blue-green, canary)",
         ]
 
         return Recommendation(
@@ -339,12 +392,13 @@ class EnhancedRecommendationSystem:
             supporting_evidence=[
                 f"Current availability: {current_availability:.2f}%",
                 f"Target: {target_availability:.2f}%",
-                f"Downtime impact on users"
-            ]
+                f"Downtime impact on users",
+            ],
         )
 
-    def _recommend_generic_optimization(self, slo_result: SLOResult,
-                                      context: RecommendationContext) -> Recommendation:
+    def _recommend_generic_optimization(
+        self, slo_result: SLOResult, context: RecommendationContext
+    ) -> Recommendation:
         """Generate generic recommendation for custom metrics"""
         return Recommendation(
             category="performance",
@@ -354,22 +408,26 @@ class EnhancedRecommendationSystem:
             action_items=[
                 "Investigate metric trends and patterns",
                 "Review monitoring and alerting setup",
-                "Consider metric-specific optimizations"
+                "Consider metric-specific optimizations",
             ],
             expected_impact="Improve overall service performance",
             implementation_effort="low",
             time_to_implement="1 week",
             metrics_affected=[slo_result.metric_type.value],
             confidence_score=0.5,
-            supporting_evidence=[f"SLO compliance issue detected"]
+            supporting_evidence=[f"SLO compliance issue detected"],
         )
 
-    def _generate_proactive_recommendations(self, context: RecommendationContext) -> List[Recommendation]:
+    def _generate_proactive_recommendations(
+        self, context: RecommendationContext
+    ) -> List[Recommendation]:
         """Generate proactive recommendations based on trends"""
         recommendations = []
 
         # Check for degrading trends
-        degrading_metrics = [slo for slo in context.analysis_result.slo_results if slo.trend == "degrading"]
+        degrading_metrics = [
+            slo for slo in context.analysis_result.slo_results if slo.trend == "degrading"
+        ]
 
         if degrading_metrics:
             rec = Recommendation(
@@ -380,20 +438,22 @@ class EnhancedRecommendationSystem:
                 action_items=[
                     "Set up predictive alerting for trend analysis",
                     "Investigate root causes of performance degradation",
-                    "Implement preventive measures before SLO breaches"
+                    "Implement preventive measures before SLO breaches",
                 ],
                 expected_impact="Prevent future SLO violations",
                 implementation_effort="low",
                 time_to_implement="1 week",
                 metrics_affected=[m.metric_type.value for m in degrading_metrics],
                 confidence_score=0.7,
-                supporting_evidence=[f"Trends indicate potential future issues"]
+                supporting_evidence=[f"Trends indicate potential future issues"],
             )
             recommendations.append(rec)
 
         return recommendations
 
-    def _generate_cross_service_recommendations(self, contexts: List[RecommendationContext]) -> List[Recommendation]:
+    def _generate_cross_service_recommendations(
+        self, contexts: List[RecommendationContext]
+    ) -> List[Recommendation]:
         """Generate system-wide recommendations"""
         recommendations = []
 
@@ -426,7 +486,9 @@ class EnhancedRecommendationSystem:
 
         return issues
 
-    def _generate_system_wide_recommendation(self, issue_type: str, affected_services: List[str]) -> Optional[Recommendation]:
+    def _generate_system_wide_recommendation(
+        self, issue_type: str, affected_services: List[str]
+    ) -> Optional[Recommendation]:
         """Generate system-wide recommendation"""
         if "response_time" in issue_type:
             return Recommendation(
@@ -437,14 +499,14 @@ class EnhancedRecommendationSystem:
                 action_items=[
                     "Implement centralized caching strategy",
                     "Review network infrastructure and latency",
-                    "Consider implementing API gateway with rate limiting"
+                    "Consider implementing API gateway with rate limiting",
                 ],
                 expected_impact="Improve overall system performance",
                 implementation_effort="high",
                 time_to_implement="4-8 weeks",
                 metrics_affected=["response_time", "throughput"],
                 confidence_score=0.8,
-                supporting_evidence=[f"Affected services: {', '.join(affected_services)}"]
+                supporting_evidence=[f"Affected services: {', '.join(affected_services)}"],
             )
 
         return None
@@ -498,7 +560,9 @@ class EnhancedRecommendationSystem:
         # Implementation depends on the specific LLM API being used
         return "AI recommendation placeholder"
 
-    def _parse_ai_recommendations(self, ai_response: str, context: RecommendationContext) -> List[Recommendation]:
+    def _parse_ai_recommendations(
+        self, ai_response: str, context: RecommendationContext
+    ) -> List[Recommendation]:
         """Parse AI response into recommendation objects"""
         # Parse AI response and convert to Recommendation objects
         # This is a placeholder implementation
@@ -509,12 +573,14 @@ class EnhancedRecommendationSystem:
         priority_map = {"critical": 1, "high": 2, "medium": 3, "low": 4}
         return priority_map.get(priority, 5)
 
-    def export_recommendations(self, recommendations: Dict[str, List[Recommendation]],
-                             format: str = "json") -> str:
+    def export_recommendations(
+        self, recommendations: Dict[str, List[Recommendation]], format: str = "json"
+    ) -> str:
         """Export recommendations in specified format"""
         try:
             if format.lower() == "json":
                 import json
+
                 export_data = {}
                 for service, recs in recommendations.items():
                     export_data[service] = [rec.__dict__ for rec in recs]
@@ -535,20 +601,22 @@ class EnhancedRecommendationSystem:
             lines.append(f"## {service_name}\n")
 
             for rec in recs:
-                lines.extend([
-                    f"### {rec.title}",
-                    f"**Priority:** {rec.priority}",
-                    f"**Category:** {rec.category}",
-                    f"**Description:** {rec.description}",
-                    "",
-                    "**Action Items:**",
-                    *[f"- {item}" for item in rec.action_items],
-                    "",
-                    f"**Expected Impact:** {rec.expected_impact}",
-                    f"**Implementation Effort:** {rec.implementation_effort}",
-                    f"**Time to Implement:** {rec.time_to_implement}",
-                    f"**Confidence Score:** {rec.confidence_score:.1f}",
-                    ""
-                ])
+                lines.extend(
+                    [
+                        f"### {rec.title}",
+                        f"**Priority:** {rec.priority}",
+                        f"**Category:** {rec.category}",
+                        f"**Description:** {rec.description}",
+                        "",
+                        "**Action Items:**",
+                        *[f"- {item}" for item in rec.action_items],
+                        "",
+                        f"**Expected Impact:** {rec.expected_impact}",
+                        f"**Implementation Effort:** {rec.implementation_effort}",
+                        f"**Time to Implement:** {rec.time_to_implement}",
+                        f"**Confidence Score:** {rec.confidence_score:.1f}",
+                        "",
+                    ]
+                )
 
         return "\n".join(lines)

@@ -11,15 +11,17 @@ Fast, accurate, and proactive SLO breach detection.
 """
 
 import logging
-import numpy as np
-from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Tuple, Any
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
 
 
 class AnomalyMethod(Enum):
     """Anomaly detection methods"""
+
     Z_SCORE = "z_score"
     MODIFIED_Z_SCORE = "modified_z_score"
     IQR = "iqr"
@@ -30,6 +32,7 @@ class AnomalyMethod(Enum):
 
 class AnomalySeverity(Enum):
     """Severity levels for anomalies"""
+
     INFO = "info"  # Minor deviation, informational
     WARNING = "warning"  # Moderate deviation, monitor closely
     CRITICAL = "critical"  # Major deviation, immediate action needed
@@ -38,6 +41,7 @@ class AnomalySeverity(Enum):
 @dataclass
 class Anomaly:
     """Represents a detected anomaly"""
+
     timestamp: datetime
     value: float
     expected_value: float
@@ -53,6 +57,7 @@ class Anomaly:
 @dataclass
 class BaselineStatistics:
     """Statistical baseline for a metric"""
+
     mean: float
     std: float
     median: float
@@ -79,7 +84,7 @@ class AnomalyDetector:
         baseline_window_hours: int = 168,  # 1 week
         min_samples: int = 30,
         enable_prophet: bool = False,
-        enable_lstm: bool = False
+        enable_lstm: bool = False,
     ):
         """
         Initialize anomaly detector
@@ -106,18 +111,24 @@ class AnomalyDetector:
         if enable_prophet:
             try:
                 from prophet import Prophet
+
                 self.prophet_available = True
                 self.logger.info("Prophet available for seasonal decomposition")
             except ImportError:
-                self.logger.warning("Prophet requested but not installed. Using statistical methods only.")
+                self.logger.warning(
+                    "Prophet requested but not installed. Using statistical methods only."
+                )
 
         if enable_lstm:
             try:
                 import tensorflow as tf
+
                 self.lstm_available = True
                 self.logger.info("TensorFlow available for LSTM anomaly detection")
             except ImportError:
-                self.logger.warning("LSTM requested but TensorFlow not installed. Using statistical methods only.")
+                self.logger.warning(
+                    "LSTM requested but TensorFlow not installed. Using statistical methods only."
+                )
 
     def detect_anomalies(
         self,
@@ -125,7 +136,7 @@ class AnomalyDetector:
         timestamps: List[datetime],
         metric_name: str,
         service_name: str,
-        method: AnomalyMethod = AnomalyMethod.MODIFIED_Z_SCORE
+        method: AnomalyMethod = AnomalyMethod.MODIFIED_Z_SCORE,
     ) -> List[Anomaly]:
         """
         Detect anomalies in time-series data
@@ -171,9 +182,7 @@ class AnomalyDetector:
                 values_array, timestamps, metric_name, service_name
             )
         elif method == AnomalyMethod.PROPHET and self.prophet_available:
-            anomalies = self._detect_prophet(
-                values_array, timestamps, metric_name, service_name
-            )
+            anomalies = self._detect_prophet(values_array, timestamps, metric_name, service_name)
         else:
             # Default to modified z-score
             anomalies = self._detect_modified_z_score(
@@ -199,7 +208,7 @@ class AnomalyDetector:
             min=float(np.min(values)),
             max=float(np.max(values)),
             sample_size=len(values),
-            calculated_at=datetime.now()
+            calculated_at=datetime.now(),
         )
 
     def _detect_z_score(
@@ -208,7 +217,7 @@ class AnomalyDetector:
         timestamps: List[datetime],
         baseline: BaselineStatistics,
         metric_name: str,
-        service_name: str
+        service_name: str,
     ) -> List[Anomaly]:
         """Detect anomalies using standard Z-score method"""
         anomalies = []
@@ -233,7 +242,7 @@ class AnomalyDetector:
                     method=AnomalyMethod.Z_SCORE,
                     metric_name=metric_name,
                     service_name=service_name,
-                    description=f"Z-score {z_score:.2f} exceeds threshold {self.sensitivity:.2f}"
+                    description=f"Z-score {z_score:.2f} exceeds threshold {self.sensitivity:.2f}",
                 )
                 anomalies.append(anomaly)
 
@@ -245,7 +254,7 @@ class AnomalyDetector:
         timestamps: List[datetime],
         baseline: BaselineStatistics,
         metric_name: str,
-        service_name: str
+        service_name: str,
     ) -> List[Anomaly]:
         """
         Detect anomalies using Modified Z-score (MAD-based)
@@ -266,7 +275,9 @@ class AnomalyDetector:
 
         threshold = self.sensitivity * 1.5  # Adjusted threshold for modified z-score
 
-        for i, (value, timestamp, mz_score) in enumerate(zip(values, timestamps, modified_z_scores)):
+        for i, (value, timestamp, mz_score) in enumerate(
+            zip(values, timestamps, modified_z_scores)
+        ):
             if mz_score > threshold:
                 severity = self._determine_severity(mz_score, threshold)
                 confidence = min(mz_score / (threshold * 2), 1.0)
@@ -281,7 +292,7 @@ class AnomalyDetector:
                     method=AnomalyMethod.MODIFIED_Z_SCORE,
                     metric_name=metric_name,
                     service_name=service_name,
-                    description=f"Modified Z-score {mz_score:.2f} exceeds threshold {threshold:.2f}"
+                    description=f"Modified Z-score {mz_score:.2f} exceeds threshold {threshold:.2f}",
                 )
                 anomalies.append(anomaly)
 
@@ -293,7 +304,7 @@ class AnomalyDetector:
         timestamps: List[datetime],
         baseline: BaselineStatistics,
         metric_name: str,
-        service_name: str
+        service_name: str,
     ) -> List[Anomaly]:
         """
         Detect anomalies using Interquartile Range (IQR) method
@@ -328,7 +339,7 @@ class AnomalyDetector:
                     method=AnomalyMethod.IQR,
                     metric_name=metric_name,
                     service_name=service_name,
-                    description=f"Value {value:.2f} outside IQR bounds [{lower_bound:.2f}, {upper_bound:.2f}]"
+                    description=f"Value {value:.2f} outside IQR bounds [{lower_bound:.2f}, {upper_bound:.2f}]",
                 )
                 anomalies.append(anomaly)
 
@@ -340,7 +351,7 @@ class AnomalyDetector:
         timestamps: List[datetime],
         metric_name: str,
         service_name: str,
-        window: int = 5
+        window: int = 5,
     ) -> List[Anomaly]:
         """
         Detect anomalies using moving average deviation
@@ -353,13 +364,15 @@ class AnomalyDetector:
             return anomalies
 
         # Calculate moving average
-        moving_avg = np.convolve(values, np.ones(window)/window, mode='valid')
+        moving_avg = np.convolve(values, np.ones(window) / window, mode="valid")
 
         # Calculate moving std
-        moving_std = np.array([
-            np.std(values[max(0, i-window//2):min(len(values), i+window//2+1)])
-            for i in range(len(values))
-        ])
+        moving_std = np.array(
+            [
+                np.std(values[max(0, i - window // 2) : min(len(values), i + window // 2 + 1)])
+                for i in range(len(values))
+            ]
+        )
 
         # Align arrays (moving_avg is shorter)
         offset = (len(values) - len(moving_avg)) // 2
@@ -389,18 +402,14 @@ class AnomalyDetector:
                         method=AnomalyMethod.MOVING_AVERAGE,
                         metric_name=metric_name,
                         service_name=service_name,
-                        description=f"Deviation {deviation:.2f}σ from moving average"
+                        description=f"Deviation {deviation:.2f}σ from moving average",
                     )
                     anomalies.append(anomaly)
 
         return anomalies
 
     def _detect_prophet(
-        self,
-        values: np.ndarray,
-        timestamps: List[datetime],
-        metric_name: str,
-        service_name: str
+        self, values: np.ndarray, timestamps: List[datetime], metric_name: str, service_name: str
     ) -> List[Anomaly]:
         """
         Detect anomalies using Facebook Prophet (seasonal decomposition)
@@ -408,21 +417,14 @@ class AnomalyDetector:
         Requires fbprophet package. Best for metrics with seasonal patterns.
         """
         try:
-            from prophet import Prophet
             import pandas as pd
+            from prophet import Prophet
 
             # Prepare data for Prophet
-            df = pd.DataFrame({
-                'ds': timestamps,
-                'y': values
-            })
+            df = pd.DataFrame({"ds": timestamps, "y": values})
 
             # Train Prophet model
-            model = Prophet(
-                daily_seasonality=True,
-                weekly_seasonality=True,
-                interval_width=0.95
-            )
+            model = Prophet(daily_seasonality=True, weekly_seasonality=True, interval_width=0.95)
             model.fit(df)
 
             # Get predictions
@@ -432,9 +434,9 @@ class AnomalyDetector:
             anomalies = []
 
             for i, (timestamp, value) in enumerate(zip(timestamps, values)):
-                predicted = forecast['yhat'].iloc[i]
-                lower_bound = forecast['yhat_lower'].iloc[i]
-                upper_bound = forecast['yhat_upper'].iloc[i]
+                predicted = forecast["yhat"].iloc[i]
+                lower_bound = forecast["yhat_lower"].iloc[i]
+                upper_bound = forecast["yhat_upper"].iloc[i]
 
                 if value < lower_bound or value > upper_bound:
                     deviation = abs(value - predicted)
@@ -458,7 +460,7 @@ class AnomalyDetector:
                         method=AnomalyMethod.PROPHET,
                         metric_name=metric_name,
                         service_name=service_name,
-                        description=f"Value {value:.2f} outside Prophet prediction [{lower_bound:.2f}, {upper_bound:.2f}]"
+                        description=f"Value {value:.2f} outside Prophet prediction [{lower_bound:.2f}, {upper_bound:.2f}]",
                     )
                     anomalies.append(anomaly)
 
@@ -482,7 +484,7 @@ class AnomalyDetector:
         values: List[float],
         timestamps: List[datetime],
         slo_target: float,
-        forecast_minutes: int = 30
+        forecast_minutes: int = 30,
     ) -> Dict[str, Any]:
         """
         Predict if SLO will be breached in the near future
@@ -500,7 +502,7 @@ class AnomalyDetector:
             return {
                 "will_breach": False,
                 "confidence": 0.0,
-                "reason": "Insufficient historical data"
+                "reason": "Insufficient historical data",
             }
 
         # Calculate trend
@@ -518,7 +520,9 @@ class AnomalyDetector:
         # Estimate value after forecast_minutes
         # Assuming consistent data interval
         if len(timestamps) > 1:
-            avg_interval_seconds = (timestamps[-1] - timestamps[0]).total_seconds() / (len(timestamps) - 1)
+            avg_interval_seconds = (timestamps[-1] - timestamps[0]).total_seconds() / (
+                len(timestamps) - 1
+            )
             steps_ahead = (forecast_minutes * 60) / avg_interval_seconds
             predicted_value = last_value + (trend_slope * steps_ahead)
         else:
@@ -539,5 +543,9 @@ class AnomalyDetector:
             "confidence": float(confidence),
             "forecast_time": last_time + timedelta(minutes=forecast_minutes),
             "trend_slope": float(trend_slope),
-            "reason": f"Trend slope {trend_slope:.2f} predicts breach" if will_breach else "Trending within SLO"
+            "reason": (
+                f"Trend slope {trend_slope:.2f} predicts breach"
+                if will_breach
+                else "Trending within SLO"
+            ),
         }

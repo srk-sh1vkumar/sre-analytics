@@ -3,19 +3,20 @@ Prometheus Data Source Adapter
 Implements the generic data source interface for Prometheus
 """
 
-import requests
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
+
+import requests
 
 from .base import (
     DataSourceAdapter,
-    StandardMetric,
     DataSourceConfig,
-    QueryParams,
+    DataSourceType,
     MetricType,
-    DataSourceType
+    QueryParams,
+    StandardMetric,
 )
 
 
@@ -24,7 +25,7 @@ class PrometheusAdapter(DataSourceAdapter):
 
     def __init__(self, config: DataSourceConfig):
         super().__init__(config)
-        self.base_url = config.connection_params.get('url', 'http://localhost:9090')
+        self.base_url = config.connection_params.get("url", "http://localhost:9090")
         self.session = requests.Session()
         self.logger = logging.getLogger(__name__)
         self._setup_authentication()
@@ -33,15 +34,10 @@ class PrometheusAdapter(DataSourceAdapter):
         """Setup authentication for Prometheus API"""
         auth_config = self.config.authentication or {}
 
-        if auth_config.get('username') and auth_config.get('password'):
-            self.session.auth = (
-                auth_config['username'],
-                auth_config['password']
-            )
-        elif auth_config.get('bearer_token'):
-            self.session.headers.update({
-                'Authorization': f"Bearer {auth_config['bearer_token']}"
-            })
+        if auth_config.get("username") and auth_config.get("password"):
+            self.session.auth = (auth_config["username"], auth_config["password"])
+        elif auth_config.get("bearer_token"):
+            self.session.headers.update({"Authorization": f"Bearer {auth_config['bearer_token']}"})
 
     def connect(self) -> bool:
         """Establish connection to Prometheus"""
@@ -54,8 +50,8 @@ class PrometheusAdapter(DataSourceAdapter):
     def test_connection(self) -> bool:
         """Test Prometheus connection"""
         try:
-            url = urljoin(self.base_url, '/api/v1/query')
-            params = {'query': 'up'}
+            url = urljoin(self.base_url, "/api/v1/query")
+            params = {"query": "up"}
             response = self.session.get(url, params=params, timeout=10)
             return response.status_code == 200
         except Exception as e:
@@ -69,23 +65,23 @@ class PrometheusAdapter(DataSourceAdapter):
             queries = [
                 'group by (service) ({__name__=~".*"})',
                 'group by (job) ({__name__=~".*"})',
-                'group by (instance) ({__name__=~".*"})'
+                'group by (instance) ({__name__=~".*"})',
             ]
 
             services = set()
             for query in queries:
-                url = urljoin(self.base_url, '/api/v1/query')
-                params = {'query': query}
+                url = urljoin(self.base_url, "/api/v1/query")
+                params = {"query": query}
                 response = self.session.get(url, params=params, timeout=30)
 
                 if response.status_code == 200:
                     data = response.json()
-                    if data.get('status') == 'success':
-                        result = data.get('data', {}).get('result', [])
+                    if data.get("status") == "success":
+                        result = data.get("data", {}).get("result", [])
                         for item in result:
-                            metric = item.get('metric', {})
+                            metric = item.get("metric", {})
                             # Extract service names from various labels
-                            for label in ['service', 'job', 'instance']:
+                            for label in ["service", "job", "instance"]:
                                 if label in metric:
                                     services.add(metric[label])
 
@@ -98,14 +94,14 @@ class PrometheusAdapter(DataSourceAdapter):
         """Get available metrics for a Prometheus service"""
         try:
             # Query for all metrics for this service
-            url = urljoin(self.base_url, '/api/v1/label/__name__/values')
+            url = urljoin(self.base_url, "/api/v1/label/__name__/values")
             response = self.session.get(url, timeout=30)
 
             metrics = []
             if response.status_code == 200:
                 data = response.json()
-                if data.get('status') == 'success':
-                    all_metrics = data.get('data', [])
+                if data.get("status") == "success":
+                    all_metrics = data.get("data", [])
 
                     # Filter metrics that might be relevant to the service
                     service_metrics = []
@@ -128,18 +124,18 @@ class PrometheusAdapter(DataSourceAdapter):
             queries = [
                 f'{metric_name}{{service="{service_name}"}}',
                 f'{metric_name}{{job="{service_name}"}}',
-                f'{metric_name}{{instance=~".*{service_name}.*"}}'
+                f'{metric_name}{{instance=~".*{service_name}.*"}}',
             ]
 
             for query in queries:
-                url = urljoin(self.base_url, '/api/v1/query')
-                params = {'query': query}
+                url = urljoin(self.base_url, "/api/v1/query")
+                params = {"query": query}
                 response = self.session.get(url, params=params, timeout=5)
 
                 if response.status_code == 200:
                     data = response.json()
-                    if data.get('status') == 'success':
-                        result = data.get('data', {}).get('result', [])
+                    if data.get("status") == "success":
+                        result = data.get("data", {}).get("result", [])
                         if result:
                             return True
 
@@ -164,8 +160,7 @@ class PrometheusAdapter(DataSourceAdapter):
                         # Substitute service name in query
                         query = query_template.format(service=service)
                         service_metrics = self._execute_range_query(
-                            query, params.start_time, params.end_time,
-                            service, metric_type
+                            query, params.start_time, params.end_time, service, metric_type
                         )
                         metrics.extend(service_metrics)
                     except Exception as e:
@@ -179,60 +174,65 @@ class PrometheusAdapter(DataSourceAdapter):
             MetricType.RESPONSE_TIME: [
                 'avg(http_request_duration_seconds{{service="{service}"}}) * 1000',
                 'avg(response_time_ms{{service="{service}"}})',
-                'avg(http_duration_ms{{service="{service}"}})'
+                'avg(http_duration_ms{{service="{service}"}})',
             ],
             MetricType.ERROR_RATE: [
                 'rate(http_requests_total{{service="{service}",status=~"4..|5.."}}[5m])',
                 'rate(error_total{{service="{service}"}}[5m])',
-                'rate(failed_requests{{service="{service}"}}[5m])'
+                'rate(failed_requests{{service="{service}"}}[5m])',
             ],
             MetricType.THROUGHPUT: [
                 'rate(http_requests_total{{service="{service}"}}[5m])',
                 'rate(requests_total{{service="{service}"}}[5m])',
-                'rate(throughput{{service="{service}"}}[5m])'
+                'rate(throughput{{service="{service}"}}[5m])',
             ],
             MetricType.CPU_UTILIZATION: [
                 'avg(cpu_usage_percent{{service="{service}"}}) * 100',
                 'avg(process_cpu_seconds_total{{service="{service}"}}) * 100',
-                'avg(container_cpu_usage_seconds_total{{service="{service}"}}) * 100'
+                'avg(container_cpu_usage_seconds_total{{service="{service}"}}) * 100',
             ],
             MetricType.MEMORY_UTILIZATION: [
                 'avg(memory_usage_percent{{service="{service}"}}) * 100',
                 'avg(process_resident_memory_bytes{{service="{service}"}}) / avg(memory_limit_bytes{{service="{service}"}}) * 100',
-                'avg(container_memory_usage_bytes{{service="{service}"}}) / avg(container_spec_memory_limit_bytes{{service="{service}"}}) * 100'
+                'avg(container_memory_usage_bytes{{service="{service}"}}) / avg(container_spec_memory_limit_bytes{{service="{service}"}}) * 100',
             ],
             MetricType.AVAILABILITY: [
                 'avg(up{{service="{service}"}}) * 100',
                 'avg(service_up{{service="{service}"}}) * 100',
-                'avg(health_check{{service="{service}"}}) * 100'
-            ]
+                'avg(health_check{{service="{service}"}}) * 100',
+            ],
         }
 
-    def _execute_range_query(self, query: str, start_time: datetime,
-                           end_time: datetime, service_name: str,
-                           metric_type: MetricType) -> List[StandardMetric]:
+    def _execute_range_query(
+        self,
+        query: str,
+        start_time: datetime,
+        end_time: datetime,
+        service_name: str,
+        metric_type: MetricType,
+    ) -> List[StandardMetric]:
         """Execute a Prometheus range query"""
         metrics = []
 
         try:
-            url = urljoin(self.base_url, '/api/v1/query_range')
+            url = urljoin(self.base_url, "/api/v1/query_range")
             params = {
-                'query': query,
-                'start': start_time.timestamp(),
-                'end': end_time.timestamp(),
-                'step': '60s'  # 1 minute resolution
+                "query": query,
+                "start": start_time.timestamp(),
+                "end": end_time.timestamp(),
+                "step": "60s",  # 1 minute resolution
             }
 
             response = self.session.get(url, params=params, timeout=30)
 
             if response.status_code == 200:
                 data = response.json()
-                if data.get('status') == 'success':
-                    result = data.get('data', {}).get('result', [])
+                if data.get("status") == "success":
+                    result = data.get("data", {}).get("result", [])
 
                     for series in result:
-                        metric_labels = series.get('metric', {})
-                        values = series.get('values', [])
+                        metric_labels = series.get("metric", {})
+                        values = series.get("values", [])
 
                         for timestamp, value in values:
                             try:
@@ -253,15 +253,12 @@ class PrometheusAdapter(DataSourceAdapter):
                                     value=val,
                                     timestamp=dt,
                                     unit=unit,
-                                    tags={
-                                        "query": query,
-                                        **metric_labels
-                                    },
+                                    tags={"query": query, **metric_labels},
                                     raw_data={
                                         "timestamp": timestamp,
                                         "value": value,
-                                        "labels": metric_labels
-                                    }
+                                        "labels": metric_labels,
+                                    },
                                 )
 
                                 metrics.append(standard_metric)
@@ -283,7 +280,7 @@ class PrometheusAdapter(DataSourceAdapter):
             MetricType.MEMORY_UTILIZATION: "%",
             MetricType.AVAILABILITY: "%",
             MetricType.DISK_UTILIZATION: "%",
-            MetricType.NETWORK_IO: "bytes/s"
+            MetricType.NETWORK_IO: "bytes/s",
         }
         return unit_map.get(metric_type, "")
 
@@ -297,15 +294,15 @@ class PrometheusAdapter(DataSourceAdapter):
             build_info = {}
             if connected:
                 try:
-                    url = urljoin(self.base_url, '/api/v1/query')
-                    params = {'query': 'prometheus_build_info'}
+                    url = urljoin(self.base_url, "/api/v1/query")
+                    params = {"query": "prometheus_build_info"}
                     response = self.session.get(url, params=params, timeout=10)
                     if response.status_code == 200:
                         data = response.json()
-                        if data.get('status') == 'success':
-                            result = data.get('data', {}).get('result', [])
+                        if data.get("status") == "success":
+                            result = data.get("data", {}).get("result", [])
                             if result:
-                                build_info = result[0].get('metric', {})
+                                build_info = result[0].get("metric", {})
                 except Exception:
                     pass
 
@@ -316,12 +313,12 @@ class PrometheusAdapter(DataSourceAdapter):
                 "available_services": len(services),
                 "services": services[:5],  # Show first 5 services
                 "build_info": build_info,
-                "last_checked": datetime.now().isoformat()
+                "last_checked": datetime.now().isoformat(),
             }
         except Exception as e:
             return {
                 "status": "error",
                 "connected": False,
                 "error": str(e),
-                "last_checked": datetime.now().isoformat()
+                "last_checked": datetime.now().isoformat(),
             }

@@ -8,12 +8,12 @@ Similar to AppDynamics mapper but optimized for Prometheus metric patterns.
 """
 
 import logging
-from datetime import datetime, timedelta
-from typing import List, Dict, Optional, Any
 from collections import defaultdict
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 
-from .base import StandardMetric, MetricType
 from ..reports.llm_analyzer import SLOMetric
+from .base import MetricType, StandardMetric
 
 
 class PrometheusSLOMapper:
@@ -45,19 +45,17 @@ class PrometheusSLOMapper:
         """Get default SLO targets for common metrics"""
         return {
             "_default": {
-                "response_time": 200.0,      # 200ms
-                "error_rate": 0.01,          # 1% (as rate)
-                "throughput": 1.0,           # 1 request/sec minimum (as rate)
-                "availability": 0.999,       # 99.9% (as fraction)
-                "cpu_utilization": 80.0,     # 80% max CPU
-                "memory_utilization": 85.0   # 85% max memory
+                "response_time": 200.0,  # 200ms
+                "error_rate": 0.01,  # 1% (as rate)
+                "throughput": 1.0,  # 1 request/sec minimum (as rate)
+                "availability": 0.999,  # 99.9% (as fraction)
+                "cpu_utilization": 80.0,  # 80% max CPU
+                "memory_utilization": 85.0,  # 85% max memory
             }
         }
 
     def map_to_slo_metrics(
-        self,
-        standard_metrics: List[StandardMetric],
-        calculate_trends: bool = True
+        self, standard_metrics: List[StandardMetric], calculate_trends: bool = True
     ) -> List[SLOMetric]:
         """
         Convert StandardMetrics from Prometheus to SLOMetrics
@@ -92,9 +90,7 @@ class PrometheusSLOMapper:
 
         return slo_metrics
 
-    def _group_metrics(
-        self, metrics: List[StandardMetric]
-    ) -> Dict[tuple, List[StandardMetric]]:
+    def _group_metrics(self, metrics: List[StandardMetric]) -> Dict[tuple, List[StandardMetric]]:
         """Group metrics by service and metric type"""
         grouped = defaultdict(list)
 
@@ -109,7 +105,7 @@ class PrometheusSLOMapper:
         service_name: str,
         metric_type: str,
         metrics: List[StandardMetric],
-        calculate_trends: bool
+        calculate_trends: bool,
     ) -> Optional[SLOMetric]:
         """Create a single SLO metric from grouped StandardMetrics"""
 
@@ -124,22 +120,19 @@ class PrometheusSLOMapper:
         current_value = current_metric.value
 
         # Get SLO and SLA targets
-        service_targets = self.slo_targets.get(
-            service_name, self.slo_targets.get("_default", {})
-        )
+        service_targets = self.slo_targets.get(service_name, self.slo_targets.get("_default", {}))
         slo_target = service_targets.get(metric_type, 0.0)
 
         # SLA target is typically 10% higher than SLO
         sla_target = self._calculate_sla_target(slo_target, metric_type)
 
         # Normalize Prometheus values to display format
-        current_value_display, slo_target_display, sla_target_display = \
-            self._normalize_values(current_value, slo_target, sla_target, metric_type)
+        current_value_display, slo_target_display, sla_target_display = self._normalize_values(
+            current_value, slo_target, sla_target, metric_type
+        )
 
         # Calculate error budget consumed
-        error_budget_consumed = self._calculate_error_budget(
-            current_value, slo_target, metric_type
-        )
+        error_budget_consumed = self._calculate_error_budget(current_value, slo_target, metric_type)
 
         # Determine compliance status
         status = self._determine_status(error_budget_consumed)
@@ -151,8 +144,7 @@ class PrometheusSLOMapper:
             recent_metrics = metrics[-10:]
             # Normalize trend values for display
             trend_data = [
-                self._normalize_value_for_display(m.value, metric_type)
-                for m in recent_metrics
+                self._normalize_value_for_display(m.value, metric_type) for m in recent_metrics
             ]
 
         # Map unit from StandardMetric
@@ -160,8 +152,7 @@ class PrometheusSLOMapper:
 
         # Generate description
         description = self._generate_description(
-            service_name, metric_type, current_value_display,
-            slo_target_display, unit
+            service_name, metric_type, current_value_display, slo_target_display, unit
         )
 
         # Create SLOMetric
@@ -176,14 +167,12 @@ class PrometheusSLOMapper:
             timestamp=current_metric.timestamp,
             unit=unit,
             description=description,
-            trend_data=trend_data
+            trend_data=trend_data,
         )
 
         return slo_metric
 
-    def _normalize_values(
-        self, current: float, slo: float, sla: float, metric_type: str
-    ) -> tuple:
+    def _normalize_values(self, current: float, slo: float, sla: float, metric_type: str) -> tuple:
         """
         Normalize Prometheus values to human-readable display format
 
@@ -293,7 +282,7 @@ class PrometheusSLOMapper:
             "cpu_utilization": "%",
             "memory_utilization": "%",
             "disk_utilization": "%",
-            "network_io": "MB/s"
+            "network_io": "MB/s",
         }
         return unit_map.get(metric_type, "")
 
@@ -307,7 +296,7 @@ class PrometheusSLOMapper:
             "cpu_utilization": "CPU Utilization",
             "memory_utilization": "Memory Utilization",
             "disk_utilization": "Disk Utilization",
-            "network_io": "Network I/O"
+            "network_io": "Network I/O",
         }
         return name_map.get(metric_type, metric_type.replace("_", " ").title())
 
@@ -317,7 +306,7 @@ class PrometheusSLOMapper:
         metric_type: str,
         current_value: float,
         slo_target: float,
-        unit: str
+        unit: str,
     ) -> str:
         """Generate a descriptive text for the metric"""
         metric_display = self._get_metric_display_name(metric_type)
@@ -341,16 +330,14 @@ class PrometheusSLOMapper:
         Returns:
             Dictionary with health score and details
         """
-        service_metrics = [
-            m for m in slo_metrics if m.service_name == service_name
-        ]
+        service_metrics = [m for m in slo_metrics if m.service_name == service_name]
 
         if not service_metrics:
             return {
                 "service_name": service_name,
                 "health_score": 0.0,
                 "status": "unknown",
-                "metrics_count": 0
+                "metrics_count": 0,
             }
 
         # Calculate health score (0-100)
@@ -363,7 +350,7 @@ class PrometheusSLOMapper:
         status_counts = {
             "compliant": sum(1 for m in service_metrics if m.status == "compliant"),
             "at_risk": sum(1 for m in service_metrics if m.status == "at_risk"),
-            "breached": sum(1 for m in service_metrics if m.status == "breached")
+            "breached": sum(1 for m in service_metrics if m.status == "breached"),
         }
 
         # Overall status
@@ -380,5 +367,5 @@ class PrometheusSLOMapper:
             "status": overall_status,
             "metrics_count": len(service_metrics),
             "status_breakdown": status_counts,
-            "avg_error_budget_consumed": round(avg_budget, 2)
+            "avg_error_budget_consumed": round(avg_budget, 2),
         }

@@ -4,22 +4,23 @@ Chart Generator Module
 Handles creation of trend visualizations and charts for SLO metrics.
 """
 
-import logging
 import base64
+import logging
+from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from datetime import datetime
-from typing import List, Dict
+from typing import Dict, List
+
 import matplotlib.pyplot as plt
 import numpy as np
 
 from src.config.constants import (
-    CHART_WIDTH,
-    CHART_HEIGHT,
     CHART_DPI,
-    STATUS_COMPLIANT,
+    CHART_HEIGHT,
+    CHART_WIDTH,
     STATUS_AT_RISK,
-    STATUS_BREACHED
+    STATUS_BREACHED,
+    STATUS_COMPLIANT,
 )
 from src.reports.llm_analyzer import SLOMetric
 
@@ -31,7 +32,9 @@ class ChartGenerator:
         """Initialize chart generator"""
         self.logger = logging.getLogger(__name__)
 
-    def create_trend_visualizations(self, metrics: List[SLOMetric], save_images: bool = False) -> Dict[str, str]:
+    def create_trend_visualizations(
+        self, metrics: List[SLOMetric], save_images: bool = False
+    ) -> Dict[str, str]:
         """
         Create comprehensive trend visualizations for metrics
 
@@ -88,11 +91,11 @@ class ChartGenerator:
         for metric in metric_list:
             color = self._get_status_color(metric.status)
             ax1.plot(days, metric.trend_data, label=metric.service_name, linewidth=2, alpha=0.7)
-            ax1.axhline(y=metric.slo_target, color=color, linestyle='--', alpha=0.5)
+            ax1.axhline(y=metric.slo_target, color=color, linestyle="--", alpha=0.5)
 
         ax1.set_title(f'{metric_name.replace("_", " ").title()} Trend (Last 30 Days)', fontsize=14)
-        ax1.set_xlabel('Days Ago')
-        ax1.set_ylabel(f'{metric_name} ({metric_list[0].unit})')
+        ax1.set_xlabel("Days Ago")
+        ax1.set_ylabel(f"{metric_name} ({metric_list[0].unit})")
         ax1.legend()
         ax1.grid(True, alpha=0.3)
 
@@ -103,12 +106,12 @@ class ChartGenerator:
         colors = [self._get_status_color(m.status) for m in metric_list]
 
         x_pos = np.arange(len(services))
-        ax2.bar(x_pos, current_values, color=colors, alpha=0.7, label='Current')
-        ax2.scatter(x_pos, targets, color='blue', s=100, marker='D', label='SLO Target', zorder=5)
+        ax2.bar(x_pos, current_values, color=colors, alpha=0.7, label="Current")
+        ax2.scatter(x_pos, targets, color="blue", s=100, marker="D", label="SLO Target", zorder=5)
 
         ax2.set_title(f'Current {metric_name.replace("_", " ").title()} Status')
-        ax2.set_xlabel('Service')
-        ax2.set_ylabel(f'{metric_name} ({metric_list[0].unit})')
+        ax2.set_xlabel("Service")
+        ax2.set_ylabel(f"{metric_name} ({metric_list[0].unit})")
         ax2.set_xticks(x_pos)
         ax2.set_xticklabels(services, rotation=45)
         ax2.legend()
@@ -129,13 +132,13 @@ class ChartGenerator:
             str: Color name
         """
         if status == STATUS_COMPLIANT:
-            return 'green'
+            return "green"
         elif status == STATUS_AT_RISK:
-            return 'orange'
+            return "orange"
         elif status == STATUS_BREACHED:
-            return 'red'
+            return "red"
         else:
-            return 'gray'
+            return "gray"
 
     def _save_chart_to_file(self, fig, metric_name: str) -> str:
         """
@@ -151,7 +154,7 @@ class ChartGenerator:
         temp_dir = Path("reports/generated/temp_charts")
         temp_dir.mkdir(parents=True, exist_ok=True)
         temp_file = temp_dir / f"chart_{metric_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-        fig.savefig(str(temp_file), dpi=CHART_DPI, bbox_inches='tight', facecolor='white')
+        fig.savefig(str(temp_file), dpi=CHART_DPI, bbox_inches="tight", facecolor="white")
         return str(temp_file)
 
     def _fig_to_base64(self, fig) -> str:
@@ -165,7 +168,7 @@ class ChartGenerator:
             str: Base64-encoded image data URI
         """
         buffer = BytesIO()
-        fig.savefig(buffer, format='png', dpi=CHART_DPI, bbox_inches='tight')
+        fig.savefig(buffer, format="png", dpi=CHART_DPI, bbox_inches="tight")
         buffer.seek(0)
         image_base64 = base64.b64encode(buffer.getvalue()).decode()
         buffer.close()
@@ -184,39 +187,58 @@ class ChartGenerator:
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(14, 10))
 
         # Chart 1: Compliance overview pie chart
-        labels = ['Compliant', 'At Risk', 'Breached']
-        sizes = [summary['compliant_count'], summary['at_risk_count'], summary['breached_count']]
-        colors = ['green', 'orange', 'red']
-        explode = (0.1, 0, 0) if summary['compliant_count'] > 0 else (0, 0, 0.1)
+        labels = ["Compliant", "At Risk", "Breached"]
+        sizes = [summary["compliant_count"], summary["at_risk_count"], summary["breached_count"]]
+        colors = ["green", "orange", "red"]
+        explode = (0.1, 0, 0) if summary["compliant_count"] > 0 else (0, 0, 0.1)
 
-        ax1.pie(sizes, explode=explode, labels=labels, colors=colors, autopct='%1.1f%%',
-                shadow=True, startangle=90)
-        ax1.set_title('SLO Compliance Status')
+        ax1.pie(
+            sizes,
+            explode=explode,
+            labels=labels,
+            colors=colors,
+            autopct="%1.1f%%",
+            shadow=True,
+            startangle=90,
+        )
+        ax1.set_title("SLO Compliance Status")
 
         # Chart 2: Compliance percentage bar
-        ax2.barh(['Compliance Rate'], [summary['compliance_percentage']], color='blue', alpha=0.7)
+        ax2.barh(["Compliance Rate"], [summary["compliance_percentage"]], color="blue", alpha=0.7)
         ax2.set_xlim(0, 100)
-        ax2.set_xlabel('Percentage (%)')
-        ax2.set_title('Overall Compliance Rate')
-        ax2.grid(True, alpha=0.3, axis='x')
+        ax2.set_xlabel("Percentage (%)")
+        ax2.set_title("Overall Compliance Rate")
+        ax2.grid(True, alpha=0.3, axis="x")
 
         # Chart 3: Error budget consumption
-        ax3.barh(['Error Budget Used'], [summary['avg_error_budget_consumed']],
-                color='orange' if summary['avg_error_budget_consumed'] > 50 else 'green', alpha=0.7)
+        ax3.barh(
+            ["Error Budget Used"],
+            [summary["avg_error_budget_consumed"]],
+            color="orange" if summary["avg_error_budget_consumed"] > 50 else "green",
+            alpha=0.7,
+        )
         ax3.set_xlim(0, 100)
-        ax3.set_xlabel('Percentage (%)')
-        ax3.set_title('Average Error Budget Consumed')
-        ax3.grid(True, alpha=0.3, axis='x')
+        ax3.set_xlabel("Percentage (%)")
+        ax3.set_title("Average Error Budget Consumed")
+        ax3.grid(True, alpha=0.3, axis="x")
 
         # Chart 4: Health status indicator
-        health_colors = {'Healthy': 'green', 'Degraded': 'orange', 'Unhealthy': 'red'}
-        health_color = health_colors.get(summary['health_status'], 'gray')
-        ax4.text(0.5, 0.5, summary['health_status'], ha='center', va='center',
-                fontsize=36, fontweight='bold', color=health_color)
+        health_colors = {"Healthy": "green", "Degraded": "orange", "Unhealthy": "red"}
+        health_color = health_colors.get(summary["health_status"], "gray")
+        ax4.text(
+            0.5,
+            0.5,
+            summary["health_status"],
+            ha="center",
+            va="center",
+            fontsize=36,
+            fontweight="bold",
+            color=health_color,
+        )
         ax4.set_xlim(0, 1)
         ax4.set_ylim(0, 1)
-        ax4.axis('off')
-        ax4.set_title('System Health Status', fontsize=14)
+        ax4.axis("off")
+        ax4.set_title("System Health Status", fontsize=14)
 
         plt.tight_layout()
 

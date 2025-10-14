@@ -9,24 +9,25 @@ Tests the multi-tier PDF generation system including:
 - Error handling and fallback logic
 """
 
-import pytest
+# Add src to path for imports
+import sys
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch, call
+from unittest.mock import MagicMock, Mock, call, patch
 
-# Add src to path for imports
-import sys
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from src.reports.pdf_report_generator import (
-    PDFReportGenerator,
-    WEASYPRINT_AVAILABLE,
-    BROWSER_PDF_AVAILABLE,
-    REPORTLAB_AVAILABLE
-)
-from src.reports.llm_analyzer import SLOMetric, IncidentData
 from src.exceptions import PDFGenerationError
+from src.reports.llm_analyzer import IncidentData, SLOMetric
+from src.reports.pdf_report_generator import (
+    BROWSER_PDF_AVAILABLE,
+    REPORTLAB_AVAILABLE,
+    WEASYPRINT_AVAILABLE,
+    PDFReportGenerator,
+)
 
 
 class TestPDFReportGeneratorInitialization:
@@ -47,7 +48,7 @@ class TestPDFReportGeneratorInitialization:
 
     def test_log_capabilities_called(self):
         """Test that PDF capabilities are logged on init"""
-        with patch.object(PDFReportGenerator, '_log_capabilities') as mock_log:
+        with patch.object(PDFReportGenerator, "_log_capabilities") as mock_log:
             generator = PDFReportGenerator()
             mock_log.assert_called_once()
 
@@ -72,7 +73,7 @@ class TestPDFReportGeneratorEnhancedPDF:
                 status="compliant",
                 timestamp=datetime.now(),
                 error_budget_consumed=10.0,
-                trend_data=[95, 98, 100, 102, 100]
+                trend_data=[95, 98, 100, 102, 100],
             )
         ]
 
@@ -90,7 +91,7 @@ class TestPDFReportGeneratorEnhancedPDF:
             root_cause="Issue",
             resolution_steps=["Fixed"],
             lessons_learned="Lesson",
-            llm_analysis="Analysis"
+            llm_analysis="Analysis",
         )
 
     def test_create_enhanced_pdf_browser_success(self, generator, mock_metrics, tmp_path):
@@ -98,13 +99,13 @@ class TestPDFReportGeneratorEnhancedPDF:
         output_path = str(tmp_path / "test.pdf")
         html_content = "<html><body>TestApp Report</body></html>"
 
-        with patch.object(generator, '_create_browser_pdf', return_value=output_path):
+        with patch.object(generator, "_create_browser_pdf", return_value=output_path):
             result = generator.create_enhanced_pdf(
                 html_content=html_content,
                 metrics=mock_metrics,
                 incident=None,
                 output_path=output_path,
-                use_browser=True
+                use_browser=True,
             )
 
             assert result == output_path
@@ -116,14 +117,16 @@ class TestPDFReportGeneratorEnhancedPDF:
         output_path = str(tmp_path / "test.pdf")
         html_content = "<html><body>Test Report</body></html>"
 
-        with patch.object(generator, '_create_browser_pdf', side_effect=Exception("Browser failed")):
-            with patch.object(generator, '_create_weasyprint_pdf', return_value=output_path):
+        with patch.object(
+            generator, "_create_browser_pdf", side_effect=Exception("Browser failed")
+        ):
+            with patch.object(generator, "_create_weasyprint_pdf", return_value=output_path):
                 result = generator.create_enhanced_pdf(
                     html_content=html_content,
                     metrics=mock_metrics,
                     incident=None,
                     output_path=output_path,
-                    use_browser=True
+                    use_browser=True,
                 )
 
                 assert result == output_path
@@ -135,15 +138,19 @@ class TestPDFReportGeneratorEnhancedPDF:
         output_path = str(tmp_path / "test.pdf")
         html_content = "<html><body>Test Report</body></html>"
 
-        with patch.object(generator, '_create_browser_pdf', side_effect=Exception("Browser failed")):
-            with patch.object(generator, '_create_weasyprint_pdf', side_effect=Exception("WeasyPrint failed")):
-                with patch.object(generator, '_create_reportlab_pdf', return_value=output_path):
+        with patch.object(
+            generator, "_create_browser_pdf", side_effect=Exception("Browser failed")
+        ):
+            with patch.object(
+                generator, "_create_weasyprint_pdf", side_effect=Exception("WeasyPrint failed")
+            ):
+                with patch.object(generator, "_create_reportlab_pdf", return_value=output_path):
                     result = generator.create_enhanced_pdf(
                         html_content=html_content,
                         metrics=mock_metrics,
                         incident=None,
                         output_path=output_path,
-                        use_browser=True
+                        use_browser=True,
                     )
 
                     assert result == output_path
@@ -153,13 +160,17 @@ class TestPDFReportGeneratorEnhancedPDF:
         """Test that output path is auto-generated if not provided"""
         html_content = "<html><body>Test Report</body></html>"
 
-        with patch.object(generator, '_create_reportlab_pdf', return_value="reports/generated/enhanced_sre_report_20250101_120000.pdf"):
+        with patch.object(
+            generator,
+            "_create_reportlab_pdf",
+            return_value="reports/generated/enhanced_sre_report_20250101_120000.pdf",
+        ):
             result = generator.create_enhanced_pdf(
                 html_content=html_content,
                 metrics=mock_metrics,
                 incident=None,
                 output_path=None,
-                use_browser=False
+                use_browser=False,
             )
 
             assert "reports/generated/" in result
@@ -178,7 +189,7 @@ class TestPDFReportGeneratorBrowserPDF:
         html_content = "<html><body>Test Content</body></html>"
         output_path = str(tmp_path / "test.pdf")
 
-        with patch('src.reports.pdf_report_generator.BrowserPDFGenerator') as mock_browser:
+        with patch("src.reports.pdf_report_generator.BrowserPDFGenerator") as mock_browser:
             mock_instance = Mock()
             mock_instance.create_pdf_from_html_sync.return_value = True
             mock_browser.return_value = mock_instance
@@ -186,14 +197,16 @@ class TestPDFReportGeneratorBrowserPDF:
             result = generator._create_browser_pdf(html_content, output_path)
 
             assert result == output_path
-            mock_instance.create_pdf_from_html_sync.assert_called_once_with(html_content, output_path)
+            mock_instance.create_pdf_from_html_sync.assert_called_once_with(
+                html_content, output_path
+            )
 
     def test_create_browser_pdf_failure(self, generator, tmp_path):
         """Test browser PDF generation failure"""
         html_content = "<html><body>Test</body></html>"
         output_path = str(tmp_path / "test.pdf")
 
-        with patch('src.reports.pdf_report_generator.BrowserPDFGenerator') as mock_browser:
+        with patch("src.reports.pdf_report_generator.BrowserPDFGenerator") as mock_browser:
             mock_instance = Mock()
             mock_instance.create_pdf_from_html_sync.return_value = False
             mock_browser.return_value = mock_instance
@@ -215,12 +228,12 @@ class TestPDFReportGeneratorWeasyPrintPDF:
         html_content = "<html><body>Test</body></html>"
         output_path = str(tmp_path / "test.pdf")
 
-        with patch('src.reports.pdf_report_generator.WeasyPrintPDFGenerator') as mock_weasy:
+        with patch("src.reports.pdf_report_generator.WeasyPrintPDFGenerator") as mock_weasy:
             mock_instance = Mock()
             mock_instance.create_pdf_from_html.return_value = True
             mock_weasy.return_value = mock_instance
 
-            with patch.object(generator, '_setup_weasyprint_environment'):
+            with patch.object(generator, "_setup_weasyprint_environment"):
                 result = generator._create_weasyprint_pdf(html_content, output_path)
 
                 assert result == output_path
@@ -232,12 +245,12 @@ class TestPDFReportGeneratorWeasyPrintPDF:
         html_content = "<html><body>Test</body></html>"
         output_path = str(tmp_path / "test.pdf")
 
-        with patch('src.reports.pdf_report_generator.WeasyPrintPDFGenerator') as mock_weasy:
+        with patch("src.reports.pdf_report_generator.WeasyPrintPDFGenerator") as mock_weasy:
             mock_instance = Mock()
             mock_instance.create_pdf_from_html.return_value = False
             mock_weasy.return_value = mock_instance
 
-            with patch.object(generator, '_setup_weasyprint_environment'):
+            with patch.object(generator, "_setup_weasyprint_environment"):
                 with pytest.raises(PDFGenerationError):
                     generator._create_weasyprint_pdf(html_content, output_path)
 
@@ -262,7 +275,7 @@ class TestPDFReportGeneratorReportLabPDF:
                 status="compliant",
                 timestamp=datetime.now(),
                 error_budget_consumed=10.0,
-                trend_data=[]
+                trend_data=[],
             ),
             SLOMetric(
                 service_name="db",
@@ -274,8 +287,8 @@ class TestPDFReportGeneratorReportLabPDF:
                 status="breached",
                 timestamp=datetime.now(),
                 error_budget_consumed=90.0,
-                trend_data=[]
-            )
+                trend_data=[],
+            ),
         ]
 
     @pytest.mark.skipif(not REPORTLAB_AVAILABLE, reason="ReportLab not available")
@@ -283,33 +296,35 @@ class TestPDFReportGeneratorReportLabPDF:
         """Test ReportLab PDF generation without incident"""
         output_path = str(tmp_path / "test.pdf")
 
-        with patch('src.reports.pdf_report_generator.REPORTLAB_AVAILABLE', True):
-            with patch('src.reports.pdf_report_generator.SimpleDocTemplate') as mock_doc:
-                with patch.object(generator, '_create_summary_stats', return_value={
-                    'total_services': 2,
-                    'total_metrics': 2,
-                    'compliant_count': 1,
-                    'at_risk_count': 0,
-                    'breached_count': 1,
-                    'compliance_percentage': 50.0,
-                    'health_status': 'Critical'
-                }):
+        with patch("src.reports.pdf_report_generator.REPORTLAB_AVAILABLE", True):
+            with patch("src.reports.pdf_report_generator.SimpleDocTemplate") as mock_doc:
+                with patch.object(
+                    generator,
+                    "_create_summary_stats",
+                    return_value={
+                        "total_services": 2,
+                        "total_metrics": 2,
+                        "compliant_count": 1,
+                        "at_risk_count": 0,
+                        "breached_count": 1,
+                        "compliance_percentage": 50.0,
+                        "health_status": "Critical",
+                    },
+                ):
                     # Mock chart generator (imported locally in the method)
-                    with patch('src.reports.chart_generator.ChartGenerator') as mock_chart:
+                    with patch("src.reports.chart_generator.ChartGenerator") as mock_chart:
                         mock_chart_instance = Mock()
                         mock_chart_instance.create_trend_visualizations.return_value = {}
                         mock_chart.return_value = mock_chart_instance
 
                         # Mock LLM analyzer (imported locally in the method)
-                        with patch('src.reports.llm_analyzer.LLMAnalyzer') as mock_llm:
+                        with patch("src.reports.llm_analyzer.LLMAnalyzer") as mock_llm:
                             mock_llm_instance = Mock()
                             mock_llm_instance.analyze_performance_metrics.return_value = "Analysis"
                             mock_llm.return_value = mock_llm_instance
 
                             result = generator._create_reportlab_pdf(
-                                metrics=mock_metrics,
-                                incident=None,
-                                output_path=output_path
+                                metrics=mock_metrics, incident=None, output_path=output_path
                             )
 
                             assert result == output_path
@@ -318,7 +333,7 @@ class TestPDFReportGeneratorReportLabPDF:
         """Test ReportLab PDF when library not available"""
         output_path = str(tmp_path / "test.pdf")
 
-        with patch('src.reports.pdf_report_generator.REPORTLAB_AVAILABLE', False):
+        with patch("src.reports.pdf_report_generator.REPORTLAB_AVAILABLE", False):
             with pytest.raises(PDFGenerationError):
                 generator._create_reportlab_pdf(mock_metrics, None, output_path)
 
@@ -352,7 +367,7 @@ class TestPDFReportGeneratorTemplateOptimization:
         assert "chart.js" not in result
         assert "tailwindcss" not in result
         assert "font-awesome" not in result
-        assert 'onclick=' not in result
+        assert "onclick=" not in result
         assert "floating-menu" not in result
 
     def test_optimize_template_converts_tailwind(self, generator):
@@ -404,7 +419,7 @@ class TestPDFReportGeneratorSummaryStats:
                 error_budget_consumed=10.0,
                 timestamp=datetime.now(),
                 unit="ms",
-                trend_data=[]
+                trend_data=[],
             ),
             SLOMetric(
                 service_name="db",
@@ -416,19 +431,19 @@ class TestPDFReportGeneratorSummaryStats:
                 error_budget_consumed=20.0,
                 timestamp=datetime.now(),
                 unit="ms",
-                trend_data=[]
+                trend_data=[],
             ),
         ]
 
         summary = generator._create_summary_stats(metrics)
 
-        assert summary['total_services'] == 2
-        assert summary['total_metrics'] == 2
-        assert summary['compliant_count'] == 2
-        assert summary['at_risk_count'] == 0
-        assert summary['breached_count'] == 0
-        assert summary['compliance_percentage'] == 100.0
-        assert summary['health_status'] == 'Healthy'
+        assert summary["total_services"] == 2
+        assert summary["total_metrics"] == 2
+        assert summary["compliant_count"] == 2
+        assert summary["at_risk_count"] == 0
+        assert summary["breached_count"] == 0
+        assert summary["compliance_percentage"] == 100.0
+        assert summary["health_status"] == "Healthy"
 
     def test_create_summary_stats_with_breaches(self, generator):
         """Test summary with breached SLOs"""
@@ -443,7 +458,7 @@ class TestPDFReportGeneratorSummaryStats:
                 error_budget_consumed=10.0,
                 timestamp=datetime.now(),
                 unit="ms",
-                trend_data=[]
+                trend_data=[],
             ),
             SLOMetric(
                 service_name="db",
@@ -455,14 +470,14 @@ class TestPDFReportGeneratorSummaryStats:
                 error_budget_consumed=95.0,
                 timestamp=datetime.now(),
                 unit="ms",
-                trend_data=[]
+                trend_data=[],
             ),
         ]
 
         summary = generator._create_summary_stats(metrics)
 
-        assert summary['breached_count'] == 1
-        assert summary['health_status'] == 'Unhealthy'
+        assert summary["breached_count"] == 1
+        assert summary["health_status"] == "Unhealthy"
 
     def test_create_summary_stats_at_risk(self, generator):
         """Test summary with at-risk services"""
@@ -477,7 +492,7 @@ class TestPDFReportGeneratorSummaryStats:
                 error_budget_consumed=10.0,
                 timestamp=datetime.now(),
                 unit="ms",
-                trend_data=[]
+                trend_data=[],
             ),
             SLOMetric(
                 service_name="db",
@@ -489,7 +504,7 @@ class TestPDFReportGeneratorSummaryStats:
                 error_budget_consumed=70.0,
                 timestamp=datetime.now(),
                 unit="ms",
-                trend_data=[]
+                trend_data=[],
             ),
             SLOMetric(
                 service_name="cache",
@@ -501,15 +516,15 @@ class TestPDFReportGeneratorSummaryStats:
                 error_budget_consumed=75.0,
                 timestamp=datetime.now(),
                 unit="ms",
-                trend_data=[]
+                trend_data=[],
             ),
         ]
 
         summary = generator._create_summary_stats(metrics)
 
-        assert summary['at_risk_count'] == 2
+        assert summary["at_risk_count"] == 2
         # 2 at-risk out of 3 = 66%, which is > 30% threshold
-        assert summary['health_status'] == 'Degraded'
+        assert summary["health_status"] == "Degraded"
 
 
 class TestPDFReportGeneratorRecommendations:
@@ -521,10 +536,7 @@ class TestPDFReportGeneratorRecommendations:
 
     def test_generate_recommendations_with_breaches(self, generator):
         """Test recommendations include breach alerts"""
-        summary = {
-            'breached_count': 2,
-            'at_risk_count': 1
-        }
+        summary = {"breached_count": 2, "at_risk_count": 1}
 
         recommendations = generator._generate_recommendations(summary)
 
@@ -534,10 +546,7 @@ class TestPDFReportGeneratorRecommendations:
 
     def test_generate_recommendations_healthy(self, generator):
         """Test recommendations for healthy system"""
-        summary = {
-            'breached_count': 0,
-            'at_risk_count': 0
-        }
+        summary = {"breached_count": 0, "at_risk_count": 0}
 
         recommendations = generator._generate_recommendations(summary)
 

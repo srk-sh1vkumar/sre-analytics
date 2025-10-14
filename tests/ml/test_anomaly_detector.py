@@ -4,26 +4,24 @@ Tests for Anomaly Detector
 Tests statistical anomaly detection methods and SLO breach prediction.
 """
 
-import pytest
-import numpy as np
 from datetime import datetime, timedelta
+
+import numpy as np
+import pytest
+
 from src.ml.anomaly_detector import (
+    Anomaly,
     AnomalyDetector,
     AnomalyMethod,
     AnomalySeverity,
-    Anomaly,
-    BaselineStatistics
+    BaselineStatistics,
 )
 
 
 @pytest.fixture
 def detector():
     """Create detector with standard settings"""
-    return AnomalyDetector(
-        sensitivity=2.5,
-        baseline_window_hours=168,
-        min_samples=30
-    )
+    return AnomalyDetector(sensitivity=2.5, baseline_window_hours=168, min_samples=30)
 
 
 @pytest.fixture
@@ -31,7 +29,7 @@ def normal_data():
     """Generate normal time-series data"""
     np.random.seed(42)
     values = np.random.normal(100, 10, 100)
-    timestamps = [datetime.now() - timedelta(minutes=i*5) for i in range(100)]
+    timestamps = [datetime.now() - timedelta(minutes=i * 5) for i in range(100)]
     timestamps.reverse()
     return list(values), timestamps
 
@@ -43,8 +41,8 @@ def anomalous_data():
     values = np.random.normal(100, 10, 100)
     # Inject anomalies
     values[50] = 200  # Spike
-    values[75] = 30   # Drop
-    timestamps = [datetime.now() - timedelta(minutes=i*5) for i in range(100)]
+    values[75] = 30  # Drop
+    timestamps = [datetime.now() - timedelta(minutes=i * 5) for i in range(100)]
     timestamps.reverse()
     return list(values), timestamps
 
@@ -57,7 +55,7 @@ def trending_data():
     trend = x * 0.5
     noise = np.random.normal(0, 5, 100)
     values = 100 + trend + noise
-    timestamps = [datetime.now() - timedelta(minutes=i*5) for i in range(100)]
+    timestamps = [datetime.now() - timedelta(minutes=i * 5) for i in range(100)]
     timestamps.reverse()
     return list(values), timestamps
 
@@ -67,11 +65,7 @@ class TestAnomalyDetector:
 
     def test_initialization(self):
         """Test detector initializes with correct parameters"""
-        detector = AnomalyDetector(
-            sensitivity=3.0,
-            baseline_window_hours=24,
-            min_samples=50
-        )
+        detector = AnomalyDetector(sensitivity=3.0, baseline_window_hours=24, min_samples=50)
         assert detector.sensitivity == 3.0
         assert detector.baseline_window_hours == 24
         assert detector.min_samples == 50
@@ -89,9 +83,7 @@ class TestAnomalyDetector:
         values = [100.0] * 20  # Less than min_samples
         timestamps = [datetime.now() - timedelta(minutes=i) for i in range(20)]
 
-        anomalies = detector.detect_anomalies(
-            values, timestamps, "test_metric", "test_service"
-        )
+        anomalies = detector.detect_anomalies(values, timestamps, "test_metric", "test_service")
         assert anomalies == []
 
 
@@ -125,8 +117,7 @@ class TestZScoreDetection:
         values, timestamps = normal_data
 
         anomalies = detector.detect_anomalies(
-            values, timestamps, "test_metric", "test_service",
-            method=AnomalyMethod.Z_SCORE
+            values, timestamps, "test_metric", "test_service", method=AnomalyMethod.Z_SCORE
         )
 
         # Should detect very few or no anomalies in normal data
@@ -137,8 +128,7 @@ class TestZScoreDetection:
         values, timestamps = anomalous_data
 
         anomalies = detector.detect_anomalies(
-            values, timestamps, "test_metric", "test_service",
-            method=AnomalyMethod.Z_SCORE
+            values, timestamps, "test_metric", "test_service", method=AnomalyMethod.Z_SCORE
         )
 
         assert len(anomalies) >= 2  # Should detect both injected anomalies
@@ -158,8 +148,7 @@ class TestZScoreDetection:
         timestamps = [datetime.now() - timedelta(minutes=i) for i in range(50)]
 
         anomalies = detector.detect_anomalies(
-            values, timestamps, "test_metric", "test_service",
-            method=AnomalyMethod.Z_SCORE
+            values, timestamps, "test_metric", "test_service", method=AnomalyMethod.Z_SCORE
         )
 
         assert anomalies == []  # No anomalies in constant data
@@ -173,8 +162,7 @@ class TestModifiedZScoreDetection:
         values, timestamps = anomalous_data
 
         anomalies = detector.detect_anomalies(
-            values, timestamps, "test_metric", "test_service",
-            method=AnomalyMethod.MODIFIED_Z_SCORE
+            values, timestamps, "test_metric", "test_service", method=AnomalyMethod.MODIFIED_Z_SCORE
         )
 
         assert len(anomalies) >= 2  # Should detect injected anomalies
@@ -189,8 +177,7 @@ class TestModifiedZScoreDetection:
         timestamps = [datetime.now() - timedelta(minutes=i) for i in range(50)]
 
         anomalies = detector.detect_anomalies(
-            values, timestamps, "test_metric", "test_service",
-            method=AnomalyMethod.MODIFIED_Z_SCORE
+            values, timestamps, "test_metric", "test_service", method=AnomalyMethod.MODIFIED_Z_SCORE
         )
 
         assert anomalies == []
@@ -204,8 +191,7 @@ class TestIQRDetection:
         values, timestamps = anomalous_data
 
         anomalies = detector.detect_anomalies(
-            values, timestamps, "test_metric", "test_service",
-            method=AnomalyMethod.IQR
+            values, timestamps, "test_metric", "test_service", method=AnomalyMethod.IQR
         )
 
         assert len(anomalies) >= 2  # Should detect injected anomalies
@@ -236,8 +222,7 @@ class TestMovingAverageDetection:
         values, timestamps = anomalous_data
 
         anomalies = detector.detect_anomalies(
-            values, timestamps, "test_metric", "test_service",
-            method=AnomalyMethod.MOVING_AVERAGE
+            values, timestamps, "test_metric", "test_service", method=AnomalyMethod.MOVING_AVERAGE
         )
 
         # Moving average may or may not detect these specific anomalies
@@ -254,8 +239,7 @@ class TestMovingAverageDetection:
 
         # Should not crash
         anomalies = detector.detect_anomalies(
-            values, timestamps, "test_metric", "test_service",
-            method=AnomalyMethod.MOVING_AVERAGE
+            values, timestamps, "test_metric", "test_service", method=AnomalyMethod.MOVING_AVERAGE
         )
 
         assert isinstance(anomalies, list)
@@ -319,7 +303,7 @@ class TestSLOBreachPrediction:
         np.random.seed(42)
         x = np.arange(50)
         values = 200 - x * 1.5 + np.random.normal(0, 3, 50)
-        timestamps = [datetime.now() - timedelta(minutes=i*5) for i in range(50)]
+        timestamps = [datetime.now() - timedelta(minutes=i * 5) for i in range(50)]
         timestamps.reverse()
 
         slo_target = 200.0  # Above current values
@@ -337,9 +321,7 @@ class TestSLOBreachPrediction:
         values = [100.0] * 20  # Less than min_samples
         timestamps = [datetime.now() - timedelta(minutes=i) for i in range(20)]
 
-        prediction = detector.predict_slo_breach(
-            values, timestamps, 150.0, forecast_minutes=30
-        )
+        prediction = detector.predict_slo_breach(values, timestamps, 150.0, forecast_minutes=30)
 
         assert prediction["will_breach"] is False
         assert prediction["confidence"] == 0.0
@@ -349,9 +331,7 @@ class TestSLOBreachPrediction:
         """Test confidence is calculated reasonably"""
         values, timestamps = normal_data
 
-        prediction = detector.predict_slo_breach(
-            values, timestamps, 150.0, forecast_minutes=30
-        )
+        prediction = detector.predict_slo_breach(values, timestamps, 150.0, forecast_minutes=30)
 
         assert 0 <= prediction["confidence"] <= 1
 
@@ -363,17 +343,12 @@ class TestMethodComparison:
         """Test all methods can detect the same anomalies"""
         values, timestamps = anomalous_data
 
-        methods = [
-            AnomalyMethod.Z_SCORE,
-            AnomalyMethod.MODIFIED_Z_SCORE,
-            AnomalyMethod.IQR
-        ]
+        methods = [AnomalyMethod.Z_SCORE, AnomalyMethod.MODIFIED_Z_SCORE, AnomalyMethod.IQR]
 
         results = {}
         for method in methods:
             anomalies = detector.detect_anomalies(
-                values, timestamps, "test_metric", "test_service",
-                method=method
+                values, timestamps, "test_metric", "test_service", method=method
             )
             results[method] = len(anomalies)
 
@@ -386,13 +361,11 @@ class TestMethodComparison:
         values, timestamps = anomalous_data
 
         z_score_anomalies = detector.detect_anomalies(
-            values, timestamps, "test_metric", "test_service",
-            method=AnomalyMethod.Z_SCORE
+            values, timestamps, "test_metric", "test_service", method=AnomalyMethod.Z_SCORE
         )
 
         iqr_anomalies = detector.detect_anomalies(
-            values, timestamps, "test_metric", "test_service",
-            method=AnomalyMethod.IQR
+            values, timestamps, "test_metric", "test_service", method=AnomalyMethod.IQR
         )
 
         # Methods may detect different numbers of anomalies
@@ -409,9 +382,7 @@ class TestEdgeCases:
         values = [100.0]
         timestamps = [datetime.now()]
 
-        anomalies = detector.detect_anomalies(
-            values, timestamps, "test_metric", "test_service"
-        )
+        anomalies = detector.detect_anomalies(values, timestamps, "test_metric", "test_service")
 
         assert anomalies == []  # Insufficient data
 
@@ -422,9 +393,7 @@ class TestEdgeCases:
 
         # Should handle gracefully (may return empty or filter NaNs)
         try:
-            anomalies = detector.detect_anomalies(
-                values, timestamps, "test_metric", "test_service"
-            )
+            anomalies = detector.detect_anomalies(values, timestamps, "test_metric", "test_service")
             assert isinstance(anomalies, list)
         except Exception:
             # NaN handling is implementation-dependent
@@ -464,9 +433,7 @@ class TestAnomalyAttributes:
         """Test anomaly objects have all required fields"""
         values, timestamps = anomalous_data
 
-        anomalies = detector.detect_anomalies(
-            values, timestamps, "test_metric", "test_service"
-        )
+        anomalies = detector.detect_anomalies(values, timestamps, "test_metric", "test_service")
 
         assert len(anomalies) > 0
 
@@ -486,9 +453,7 @@ class TestAnomalyAttributes:
         """Test anomaly descriptions are informative"""
         values, timestamps = anomalous_data
 
-        anomalies = detector.detect_anomalies(
-            values, timestamps, "test_metric", "test_service"
-        )
+        anomalies = detector.detect_anomalies(values, timestamps, "test_metric", "test_service")
 
         for anomaly in anomalies:
             assert len(anomaly.description) > 10

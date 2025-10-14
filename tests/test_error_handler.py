@@ -2,19 +2,32 @@
 Tests for error handler utilities
 """
 
-import pytest
 import time
-from unittest.mock import Mock, patch, MagicMock
-from src.utils.error_handler import (
-    retry_on_error, retry_with_fallback, ErrorContext,
-    safe_execute, handle_api_error, log_exception_with_context,
-    validate_required_fields, validate_config_value
-)
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+
 from src.exceptions import (
-    APIConnectionError, APITimeoutError, APIAuthenticationError,
-    APIAuthorizationError, ResourceNotFoundError, APIRateLimitError,
-    APIResponseError, InputValidationError, MissingConfigError,
-    InvalidConfigError
+    APIAuthenticationError,
+    APIAuthorizationError,
+    APIConnectionError,
+    APIRateLimitError,
+    APIResponseError,
+    APITimeoutError,
+    InputValidationError,
+    InvalidConfigError,
+    MissingConfigError,
+    ResourceNotFoundError,
+)
+from src.utils.error_handler import (
+    ErrorContext,
+    handle_api_error,
+    log_exception_with_context,
+    retry_on_error,
+    retry_with_fallback,
+    safe_execute,
+    validate_config_value,
+    validate_required_fields,
 )
 
 
@@ -62,8 +75,12 @@ class TestRetryDecorator:
         """Test exponential backoff"""
         call_times = []
 
-        @retry_on_error(max_attempts=3, delay_seconds=0.1, backoff_multiplier=2.0,
-                       retry_on=(APIConnectionError,))
+        @retry_on_error(
+            max_attempts=3,
+            delay_seconds=0.1,
+            backoff_multiplier=2.0,
+            retry_on=(APIConnectionError,),
+        )
         def test_func():
             call_times.append(time.time())
             if len(call_times) < 3:
@@ -83,9 +100,12 @@ class TestRetryDecorator:
         """Test non-retryable exception is immediately raised"""
         mock_func = Mock(side_effect=APIAuthenticationError("Auth failed"))
 
-        @retry_on_error(max_attempts=3, delay_seconds=0.01,
-                       retry_on=(APIConnectionError,),
-                       raise_on=(APIAuthenticationError,))
+        @retry_on_error(
+            max_attempts=3,
+            delay_seconds=0.01,
+            retry_on=(APIConnectionError,),
+            raise_on=(APIAuthenticationError,),
+        )
         def test_func():
             return mock_func()
 
@@ -165,6 +185,7 @@ class TestSafeExecute:
 
     def test_safe_execute_with_error(self):
         """Test safe_execute returns default on error"""
+
         def failing_func():
             raise ValueError("Failed")
 
@@ -173,6 +194,7 @@ class TestSafeExecute:
 
     def test_safe_execute_logs_errors(self, caplog):
         """Test safe_execute logs errors"""
+
         def failing_func():
             raise ValueError("Test error")
 
@@ -181,6 +203,7 @@ class TestSafeExecute:
 
     def test_safe_execute_no_logging(self, caplog):
         """Test safe_execute without logging"""
+
         def failing_func():
             raise ValueError("Test error")
 
@@ -194,10 +217,10 @@ class TestHandleApiError:
     def test_handle_401_error(self):
         """Test handling 401 Unauthorized"""
         with pytest.raises(APIAuthenticationError) as exc_info:
-            handle_api_error(401, "Unauthorized", {'endpoint': '/api/data'})
+            handle_api_error(401, "Unauthorized", {"endpoint": "/api/data"})
 
         assert exc_info.value.status_code == 401
-        assert exc_info.value.context['endpoint'] == '/api/data'
+        assert exc_info.value.context["endpoint"] == "/api/data"
 
     def test_handle_403_error(self):
         """Test handling 403 Forbidden"""
@@ -245,32 +268,32 @@ class TestValidateRequiredFields:
 
     def test_validate_all_fields_present(self):
         """Test validation passes when all fields present"""
-        data = {'name': 'John', 'age': 30, 'email': 'john@example.com'}
-        required = ['name', 'age', 'email']
+        data = {"name": "John", "age": 30, "email": "john@example.com"}
+        required = ["name", "age", "email"]
 
         # Should not raise
         validate_required_fields(data, required)
 
     def test_validate_missing_fields(self):
         """Test validation fails when fields missing"""
-        data = {'name': 'John'}
-        required = ['name', 'age', 'email']
+        data = {"name": "John"}
+        required = ["name", "age", "email"]
 
         with pytest.raises(InputValidationError) as exc_info:
             validate_required_fields(data, required)
 
-        assert 'age' in exc_info.value.context['missing_fields']
-        assert 'email' in exc_info.value.context['missing_fields']
+        assert "age" in exc_info.value.context["missing_fields"]
+        assert "email" in exc_info.value.context["missing_fields"]
 
     def test_validate_none_values(self):
         """Test validation fails when fields are None"""
-        data = {'name': 'John', 'age': None, 'email': None}
-        required = ['name', 'age', 'email']
+        data = {"name": "John", "age": None, "email": None}
+        required = ["name", "age", "email"]
 
         with pytest.raises(InputValidationError) as exc_info:
             validate_required_fields(data, required)
 
-        assert 'age' in exc_info.value.context['missing_fields']
+        assert "age" in exc_info.value.context["missing_fields"]
 
 
 class TestValidateConfigValue:
@@ -278,44 +301,45 @@ class TestValidateConfigValue:
 
     def test_validate_required_present(self):
         """Test validation of required present value"""
-        config = {'database_url': 'localhost:5432'}
-        value = validate_config_value(config, 'database_url', str, required=True)
+        config = {"database_url": "localhost:5432"}
+        value = validate_config_value(config, "database_url", str, required=True)
 
-        assert value == 'localhost:5432'
+        assert value == "localhost:5432"
 
     def test_validate_required_missing(self):
         """Test validation fails for missing required value"""
         config = {}
 
         with pytest.raises(MissingConfigError) as exc_info:
-            validate_config_value(config, 'database_url', str, required=True)
+            validate_config_value(config, "database_url", str, required=True)
 
-        assert 'database_url' in str(exc_info.value)
+        assert "database_url" in str(exc_info.value)
 
     def test_validate_optional_missing(self):
         """Test validation passes for missing optional value"""
         config = {}
-        value = validate_config_value(config, 'optional_key', str,
-                                      required=False, default='default_value')
+        value = validate_config_value(
+            config, "optional_key", str, required=False, default="default_value"
+        )
 
-        assert value == 'default_value'
+        assert value == "default_value"
 
     def test_validate_wrong_type(self):
         """Test validation fails for wrong type"""
-        config = {'port': '8080'}  # String instead of int
+        config = {"port": "8080"}  # String instead of int
 
         with pytest.raises(InvalidConfigError) as exc_info:
-            validate_config_value(config, 'port', int, required=True)
+            validate_config_value(config, "port", int, required=True)
 
-        assert 'int' in exc_info.value.context['expected_type']
-        assert 'str' in exc_info.value.context['actual_type']
+        assert "int" in exc_info.value.context["expected_type"]
+        assert "str" in exc_info.value.context["actual_type"]
 
     def test_validate_correct_type(self):
         """Test validation passes for correct type"""
-        config = {'port': 8080, 'debug': True}
+        config = {"port": 8080, "debug": True}
 
-        port = validate_config_value(config, 'port', int)
-        debug = validate_config_value(config, 'debug', bool)
+        port = validate_config_value(config, "port", int)
+        debug = validate_config_value(config, "debug", bool)
 
         assert port == 8080
         assert debug is True
@@ -327,13 +351,11 @@ class TestLogExceptionWithContext:
     def test_log_standard_exception(self, caplog):
         """Test logging standard exception"""
         import logging
-        logger = logging.getLogger('test')
+
+        logger = logging.getLogger("test")
 
         exc = ValueError("Test error")
-        log_exception_with_context(
-            exc, logger, "data processing",
-            context={'data_id': '123'}
-        )
+        log_exception_with_context(exc, logger, "data processing", context={"data_id": "123"})
 
         assert "data processing" in caplog.text
         assert "ValueError" in caplog.text
@@ -341,11 +363,11 @@ class TestLogExceptionWithContext:
     def test_log_custom_exception_with_context(self, caplog):
         """Test logging custom exception with built-in context"""
         import logging
-        logger = logging.getLogger('test')
+
+        logger = logging.getLogger("test")
 
         exc = APIConnectionError(
-            "Connection failed",
-            context={'host': 'api.example.com', 'port': 443}
+            "Connection failed", context={"host": "api.example.com", "port": 443}
         )
         log_exception_with_context(exc, logger, "API call")
 
