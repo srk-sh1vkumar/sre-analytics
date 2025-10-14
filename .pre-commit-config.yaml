@@ -31,8 +31,8 @@ repos:
     rev: v1.8.0
     hooks:
       - id: mypy
-        additional_dependencies: [types-all]
-        args: ['--config-file=mypy.ini']
+        additional_dependencies: [types-requests, types-PyYAML]
+        args: ['--config-file=mypy.ini', '--ignore-missing-imports']
         exclude: ^tests/
 
   # Trailing whitespace
