@@ -3,10 +3,10 @@
 max-line-length = 100
 
 # Errors and warnings to ignore
-extend-ignore =
-    E203,  # Whitespace before ':' (conflicts with Black)
-    W503,  # Line break before binary operator (conflicts with Black)
-    E501,  # Line too long (handled by Black)
+# E203: Whitespace before ':' (conflicts with Black)
+# W503: Line break before binary operator (conflicts with Black)
+# E501: Line too long (handled by Black)
+extend-ignore = E203,W503,E501
 
 # Maximum complexity
 max-complexity = 15
