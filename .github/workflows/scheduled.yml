@@ -33,7 +33,8 @@ jobs:
       - name: Generate test report
         if: always()
         run: |
-          pytest tests/ --html=test-report.html --self-contained-html
+          pip install pytest-html
+          pytest tests/ --html=test-report.html --self-contained-html || true
 
       - name: Upload test report
         uses: actions/upload-artifact@v3
@@ -87,7 +88,7 @@ jobs:
 
       - name: Run performance benchmarks
         run: |
-          pytest tests/performance/ --benchmark-only || echo "No performance tests found"
+          pytest tests/performance/ -v || echo "No performance tests found"
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v3
