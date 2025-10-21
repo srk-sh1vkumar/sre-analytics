@@ -87,19 +87,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy to Staging (placeholder)
+      - name: Deploy to Staging
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          IMAGE_TAG: main-${{ github.sha }}
+          NAMESPACE: sre-analytics-staging
+          DEPLOY_METHOD: kubernetes
         run: |
-          echo "🚀 Staging deployment placeholder"
-          echo "ℹ️ Configure Kubernetes/Helm/deployment scripts here"
-          echo ""
-          echo "Example commands:"
-          echo "  kubectl apply -f k8s/ --context=staging"
-          echo "  helm upgrade --install sre-analytics ./helm/sre-analytics"
+          echo "🚀 Deploying to staging environment..."
+          bash scripts/deployment/deploy-staging.sh
 
-      - name: Run smoke tests (placeholder)
+      - name: Run smoke tests
+        env:
+          STAGING_URL: https://staging.sre-analytics.example.com
         run: |
-          echo "🧪 Smoke tests placeholder"
-          echo "ℹ️ Add health check endpoints and basic API tests"
+          echo "🧪 Running smoke tests..."
+          bash scripts/deployment/smoke-tests.sh staging
 
   deploy-production:
     runs-on: ubuntu-latest
@@ -113,21 +116,30 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy to Production (placeholder)
+      - name: Deploy to Production
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          IMAGE_TAG: ${{ github.ref_name }}
+          NAMESPACE: sre-analytics
+          DEPLOY_METHOD: kubernetes
+          PRODUCTION_DEPLOY_CONFIRMED: true
         run: |
-          echo "🚀 Production deployment placeholder"
-          echo "ℹ️ Configure production deployment scripts here"
+          echo "🚀 Deploying to production environment..."
+          bash scripts/deployment/deploy-production.sh
+
+      - name: Run smoke tests
+        env:
+          PRODUCTION_URL: https://sre-analytics.example.com
+        run: |
+          echo "🧪 Running production smoke tests..."
+          bash scripts/deployment/smoke-tests.sh production
+
+      - name: Notify deployment success
+        if: success()
+        run: |
+          echo "✅ Production deployment successful!"
+          echo "📊 Version: ${{ github.ref_name }}"
+          echo "🔗 URL: https://sre-analytics.example.com"
           echo ""
-          echo "Example commands:"
-          echo "  kubectl apply -f k8s/ --context=production"
-          echo "  helm upgrade --install sre-analytics ./helm/sre-analytics"
-
-      - name: Run smoke tests (placeholder)
-        run: |
-          echo "🧪 Production smoke tests placeholder"
-          echo "ℹ️ Add comprehensive health checks and API tests"
-
-      - name: Notify deployment success (placeholder)
-        run: |
-          echo "✅ Production deployment notification placeholder"
-          echo "ℹ️ Configure Slack/email notifications here"
+          echo "ℹ️  Configure Slack/email notifications by setting up webhooks"
+          echo "    Example: curl -X POST \$SLACK_WEBHOOK_URL -d '{\"text\":\"Deployed v${{ github.ref_name }}\"}'"

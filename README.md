@@ -484,6 +484,19 @@ docker-compose up -d
 kubectl apply -f k8s/
 ```
 
+## 📚 Documentation
+
+Comprehensive documentation is available in the [`docs/`](docs/) directory:
+
+- **[API Documentation](docs/API_DOCUMENTATION.md)** - REST API reference
+- **[ML Anomaly Detection](docs/ML_ANOMALY_DETECTION.md)** - Machine learning features
+- **[Setup Guides](docs/setup/)** - OAuth and initial configuration
+- **[Development](docs/development/)** - Git workflow and code review
+- **[Deployment](docs/deployment/)** - CI/CD and deployment guides
+- **[Project Management](docs/project-management/)** - Roadmap and enhancements
+
+See [docs/README.md](docs/README.md) for complete documentation index.
+
 ## 🤝 Contributing
 
 1. Fork the repository
